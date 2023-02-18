@@ -1,0 +1,7 @@
+.env
+**/.idea/**
+**/.ipynb_chcekpoints/**
+.venv
+**/__pycache__/**
+local_db/**
+**/*.ipynb
