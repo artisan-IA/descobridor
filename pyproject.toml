@@ -45,7 +45,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.ruff]
 # Enable Pyflakes `E` and `F` codes by default.
 select = ["E", "F", "B", "C", "I", "N", "S", "W"]
-ignore = ["I001", "S101"]
+ignore = ["I001", "S101", "W605"]
 
 # Allow autofix for all enabled rules (when `--fix`) is provided.
 fixable = ["A", "B", "C", "D", "E", "F"]

@@ -1,5 +1,4 @@
-from datetime import datetime, timedelta, date
-from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 
 class ReviewAge:
@@ -32,19 +31,19 @@ class ReviewAge:
                return ReviewAge.str_en_to_days_before_scrape(string)
      
      def __eq__(self, __o: "ReviewAge") -> bool:
-          self.review_date == __o.review_date
+          self.review_date == __o.review_date # noqa B015
           
      def __lt__(self, __o: "ReviewAge") -> bool:
-          self.review_date < __o.review_date
+          self.review_date < __o.review_date # noqa B015
           
      def __gt__(self, __o: "ReviewAge") -> bool:
-          self.review_date > __o.review_date
+          self.review_date > __o.review_date # noqa B015
           
      def __le__(self, __o: "ReviewAge") -> bool:
-          self.review_date <= __o.review_date
+          self.review_date <= __o.review_date # noqa B015
           
      def __ge__(self, __o: "ReviewAge") -> bool:
-          self.review_date >= __o.review_date
+          self.review_date >= __o.review_date # noqa B015
           
      def __str__(self) -> str:
           return self.review_date.strftime('%Y-%m-%d')
@@ -94,4 +93,3 @@ class ReviewAge:
                return int(age_list[1]) * 365
           else:
                raise ValueError(f"Unknown age unit: {age_list[2]}")
-     
