@@ -8,7 +8,8 @@ import re
 import pandas as pd
 import pickle
 import hashlib
-from descobridor.discovery.review_age import ReviewAge
+# from descobridor.discovery.review_age import ReviewAge
+from review_age import ReviewAge
 from joblib import Parallel, delayed
 
 
@@ -152,6 +153,31 @@ def add_unique_review_id(review_df):
     return review_df
 
 
+# def split_translated_original(text, language):
+#     """
+#     """
+#     if not text or not isinstance(text, str):
+#         return '', ''
+    
+#     if language == "ES":
+#         trans_ind = "\(Traducido por Google\)"
+#         orig_ind = "\(Original\)"
+#     else:
+#         raise NotImplementedError("Only ES is implemented")
+#     if len(re.findall(trans_ind, text)) > 0:
+#         _, start_trans = re.search(trans_ind, text).span()
+#         end_trans, start_orig = re.search(orig_ind, text[start_trans:]).span()
+#         end_trans, start_orig = end_trans + start_trans, start_orig + start_trans
+#         repeat_trans = re.search(trans_ind, text[start_orig:])
+#         if repeat_trans:
+#             end_orig, _ = repeat_trans.span()
+#             end_orig += start_orig
+#         else:
+#             end_orig = len(text)
+#         return text[start_trans:end_trans], text[start_orig:end_orig]
+#     else:
+#         return text, ''
+    
 def split_translated_original(text, language):
     """
     """
@@ -159,24 +185,23 @@ def split_translated_original(text, language):
         return '', ''
     
     if language == "ES":
-        trans_ind = "\(Traducido por Google\)"
-        orig_ind = "\(Original\)"
+        trans_ind = "(Traducido por Google)"
+        orig_ind = "(Original)"
+        trans_ind_ing = "(Translated by Google)"
     else:
         raise NotImplementedError("Only ES is implemented")
+    text = text.rstrip('Más')
     if len(re.findall(trans_ind, text)) > 0:
-        _, start_trans = re.search(trans_ind, text).span()
-        end_trans, start_orig = re.search(orig_ind, text[start_trans:]).span()
-        end_trans, start_orig = end_trans + start_trans, start_orig + start_trans
-        repeat_trans = re.search(trans_ind, text[start_orig:])
-        if repeat_trans:
-            end_orig, _ = repeat_trans.span()
-            end_orig += start_orig
-        else:
-            end_orig = len(text)
-        return text[start_trans:end_trans], text[start_orig:end_orig]
+        text_target = text.partition(orig_ind)[0].replace(trans_ind, '').strip()
+        text_other_lang = text.partition(orig_ind)[2].replace(orig_ind, '').partition(trans_ind)[0].strip()
+        return text_target, text_other_lang
+    if len(re.findall(trans_ind_ing, text)) > 0:
+        text_other_lang = text.partition(trans_ind_ing)[0].replace(trans_ind_ing, '').strip()
+        text_target = text.partition(trans_ind_ing)[2].replace(trans_ind_ing, '').partition(trans_ind_ing)[0].strip()
+        return text_target, text_other_lang
     else:
-        return text, ''
-    
+      return text, ''
+
     
 def add_transalated_original_to_dict(dict_list, language):
     for a_dict in dict_list:
@@ -200,12 +225,13 @@ def save_to_pickle(list_of_final_dict):
 
 if __name__ == "__main__":
     # for testing and such
-    file_name = "all_raw_reviews.csv"
+    file_name = 'raw_reviews_sample_500.csv'
+    # file_name = "all_raw_reviews.csv"
     #file_name= "doner_kebab.csv"
-
     df = pd.read_csv(file_name)
-    list_of_final_dict= extract_all_files_reviews(df)
-    #save_to_pickle(list_of_final_dict)
+    list_of_final_dict= extract_all_files_reviews(df, 'ES')
+    # save_to_pickle(list_of_final_dict)
+    # list_of_final_dict.to_csv("reviews_sample_partial.csv")   
     print(list_of_final_dict)
     print('yay')
 
