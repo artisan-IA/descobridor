@@ -192,11 +192,9 @@ def split_translated_original(text, language):
         raise NotImplementedError("Only ES is implemented")
     text = text.rstrip('Más')
     sep = text[:30]
-    print('sep: ', sep)
     repetition_index = text.lower().find(sep.lower(),1)
     if repetition_index != 0:
         text = text[:repetition_index]
-        print('text: ', text)
     if len(re.findall(trans_ind, text)) > 0:
         text_target = text.partition(orig_ind)[0].replace(trans_ind, '').strip()
         text_other_lang = text.partition(orig_ind)[2].replace(orig_ind, '').partition(trans_ind)[0].strip()
