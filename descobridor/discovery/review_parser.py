@@ -8,8 +8,8 @@ import re
 import pandas as pd
 import pickle
 import hashlib
-# from descobridor.discovery.review_age import ReviewAge
-from review_age import ReviewAge
+from descobridor.discovery.review_age import ReviewAge
+# from review_age import ReviewAge
 from joblib import Parallel, delayed
 
 
@@ -191,13 +191,20 @@ def split_translated_original(text, language):
     else:
         raise NotImplementedError("Only ES is implemented")
     text = text.rstrip('Más')
+    sep = text[:30]
+    print('sep: ', sep)
+    repetition_index = text.lower().find(sep.lower(),1)
+    if repetition_index != 0:
+        text = text[:repetition_index]
+        print('text: ', text)
     if len(re.findall(trans_ind, text)) > 0:
         text_target = text.partition(orig_ind)[0].replace(trans_ind, '').strip()
         text_other_lang = text.partition(orig_ind)[2].replace(orig_ind, '').partition(trans_ind)[0].strip()
         return text_target, text_other_lang
     if len(re.findall(trans_ind_ing, text)) > 0:
         text_other_lang = text.partition(trans_ind_ing)[0].replace(trans_ind_ing, '').strip()
-        text_target = text.partition(trans_ind_ing)[2].replace(trans_ind_ing, '').partition(trans_ind_ing)[0].strip()
+        # text_target = text.partition(trans_ind_ing)[2].replace(trans_ind_ing, '').partition(trans_ind_ing)[0].strip()
+        text_target = text.partition(trans_ind_ing)[2].replace(trans_ind_ing, '').partition(trans_ind_ing)[0].strip().replace(text_other_lang, '').strip()
         return text_target, text_other_lang
     else:
       return text, ''
@@ -223,17 +230,17 @@ def save_to_pickle(list_of_final_dict):
 
 
 
-if __name__ == "__main__":
-    # for testing and such
-    file_name = 'raw_reviews_sample_500.csv'
-    # file_name = "all_raw_reviews.csv"
-    #file_name= "doner_kebab.csv"
-    df = pd.read_csv(file_name)
-    list_of_final_dict= extract_all_files_reviews(df, 'ES')
-    # save_to_pickle(list_of_final_dict)
-    # list_of_final_dict.to_csv("reviews_sample_partial.csv")   
-    print(list_of_final_dict)
-    print('yay')
+# if __name__ == "__main__":
+#     # for testing and such
+#     file_name = 'raw_reviews_sample_500.csv'
+#     # file_name = "all_raw_reviews.csv"
+#     #file_name= "doner_kebab.csv"
+#     df = pd.read_csv(file_name)
+#     list_of_final_dict= extract_all_files_reviews(df, 'ES')
+#     # save_to_pickle(list_of_final_dict)
+#     # list_of_final_dict.to_csv("reviews_sample_partial.csv")   
+#     print(list_of_final_dict)
+#     print('yay')
 
 
 
