@@ -194,7 +194,12 @@ def split_translated_original(text, language):
         return text_target, text_other_lang
     if len(re.findall(trans_ind_ing, text)) > 0:
         text_other_lang = text.partition(trans_ind_ing)[0].replace(trans_ind_ing, '').strip()
-        text_target = text.partition(trans_ind_ing)[2].replace(trans_ind_ing, '').partition(trans_ind_ing)[0].strip()
+        text_target = (
+            text.partition(trans_ind_ing)[2]
+            .replace(trans_ind_ing, '')
+            .partition(trans_ind_ing)[0]
+            .strip()
+        )
         return text_target, text_other_lang
     else:
       return text, ''
@@ -223,10 +228,7 @@ def save_to_pickle(list_of_final_dict):
 
 
 if __name__ == "__main__":
-    # for testing and such
     file_name = 'raw_reviews_sample_500.csv'
-    # file_name = "all_raw_reviews.csv"
-    #file_name= "doner_kebab.csv"
     df = pd.read_csv(file_name)
     list_of_final_dict= extract_all_files_reviews(df, 'ES')
     # save_to_pickle(list_of_final_dict)
