@@ -15,6 +15,7 @@ def callback(ch, method, properties, body):
     if status:
         ch.basic_ack(delivery_tag = method.delivery_tag)
     else:
+        # need some kind of negative acknolwedgement here
         print("No luck this time.")
     
 def is_serp_limit_reached():
