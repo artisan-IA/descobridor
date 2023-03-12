@@ -5,6 +5,7 @@ import sys
 import pika
 from descobridor.queueing.constants import SERP_QUEUE_NAME, DIRECT_EXCHANGE
 from descobridor.queueing.queues import serp_queue
+# from truby.db_connection import MongoConnection
 
 
 def get_next_batch(): # TODO: implement
