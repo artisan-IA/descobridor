@@ -161,11 +161,12 @@ def places_output_schema():
             'permanent_closed',
             'data_id',
             'all_queries',
-            'priority'
+            'priority',
+            'unserpable'
     }
     
     
-def find_place_id(place_name: str, place_coord: Tuple[float, float]) -> Union[dict, None]:
+def find_place_id(place_name: str, place_coord: Tuple[float, float], data_id: str) -> Union[dict, None]:
     """
     SERP ARI sometimes returns extra places on top of the searched ones
     These places don't have a place_id, 
@@ -187,6 +188,7 @@ def find_place_id(place_name: str, place_coord: Tuple[float, float]) -> Union[di
     else:
         place_details = gmaps.place(place_id=place_id, language='es')['result']
         if place_details['name'] == place_name:
+            place_details['data_id'] = data_id
             return place_details
         else:
             print("place name in SERP doesn't match place found by google")
@@ -197,11 +199,10 @@ def format_places_df(place_dict: Dict[str, Any], data_id: str) -> pd.DataFrame:
     returns: a dataframe, matching the schema of gmaps_places_output 
     ready to be inserted into the database
     """
-    if 'types' in place_dict:
-        place_dict['types_en'] = place_dict['types']
-        place_dict.pop('types')
-    else:
-        place_dict['types_en'] = []
+    # TODO change to copying the dict
+    handle_place_types(place_dict)
+    add_default_priority(place_dict)
+    add_default_unserpable(place_dict)
     place_details_df = pd.DataFrame(dict( # noqa C402
         (k, [v]) for k, v in place_dict.items() 
         if (k in places_output_schema() or k == 'geometry')
@@ -209,5 +210,23 @@ def format_places_df(place_dict: Dict[str, Any], data_id: str) -> pd.DataFrame:
     place_details_df = _add_location_columns(place_details_df, None)
     place_details_df = _add_query_boilerplate(place_details_df, query=None, data_id=data_id)
     return place_details_df
+
+
+def handle_place_types(place_dict: Dict[str, Any]) -> Dict[str, Any]:
+    if 'types' in place_dict:
+        place_dict['types_en'] = place_dict['types']
+        place_dict.pop('types')
+    else:
+        place_dict['types_en'] = []
+
+
+def add_default_priority(place_dict: Dict[str, Any]) -> Dict[str, Any]:
+    if 'priority' not in place_dict:
+        place_dict['priority'] = 1
+
+
+def add_default_unserpable(place_dict: Dict[str, Any]) -> Dict[str, Any]:
+    if 'unserpable' not in place_dict:
+        place_dict['unserpable'] = False
     
 
