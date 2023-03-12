@@ -9,12 +9,12 @@ def serp_queue():
     )
     channel = connection.channel()
     channel.exchange_declare(exchange=DIRECT_EXCHANGE, exchange_type='direct', durable=True)
-    channel.queue_bind(
-            exchange=DIRECT_EXCHANGE, queue=SERP_QUEUE_NAME)
     channel.queue_declare(
         queue=SERP_QUEUE_NAME, 
         durable=True,
-        arguments={"x-max-priority": 10}
+        arguments={"x-max-priority": 10, 'x-max-length': 20, 'x-overflow': 'reject-publish'}
         )
+    channel.queue_bind(
+            exchange=DIRECT_EXCHANGE, queue=SERP_QUEUE_NAME)
     channel.confirm_delivery()
     return channel, SERP_QUEUE_NAME

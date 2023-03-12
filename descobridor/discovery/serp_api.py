@@ -100,7 +100,7 @@ def link_back_to_place_id(serp_entry: Dict[str, Any]) -> None:
                 {'$set': {'data_id': serp_entry['data_id']}}
             )
         if result.matched_count == 1 and result.modified_count == 1:
-            print(f"updated {serp_entry['name']}"
+            print(f"updated {serp_entry['title']}"
                   f"({serp_entry['place_id']}) with data_id {serp_entry['data_id']}")
         elif result.matched_count == 1 and result.modified_count == 0:
             print(f"data_id already exists for {serp_entry['name']}")
