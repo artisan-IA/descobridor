@@ -144,27 +144,30 @@ def convert_local_results_to_place_results(serp_output: Dict[str, Any], params: 
 
 
 def get_all_places_from_place_results(serp_output: Dict[str, Any], params: Dict[str, Any]):
-     # there are places with data_id in people_also_search_for results. Extracting them here.
-     people_also_search_for = serp_output['place_results']['people_also_search_for'][0]['local_results']
-     # forming dictionary to store all places. + 1 is for the place_results field
-     place_results = {
-          'search_metadata': [serp_output['search_metadata']] * (len(people_also_search_for) + 1),
-          'search_parameters': [serp_output['search_parameters']] * (len(people_also_search_for) + 1),
-          'search_information': [serp_output['search_information']] * (len(people_also_search_for) + 1),
-          'place_results': [],
-          'local_results': [],
-          'query_params': [f"{params['q']}_{params['ll']}"] * (len(people_also_search_for) + 1)
-     }
-     # appending the place results with data_id from the place_results field
-     place_results['place_results'].append(serp_output['place_results'])
-     place_results['local_results'].append('pr')
-     
-     # appending the place results with data_id from the people_also_search_for field
-     print(f"got people_also_search_for: {len(people_also_search_for)}")
-     for entry in people_also_search_for:
-          place_results['place_results'].append(entry)
-          place_results['local_results'].append(f"pasf_{entry['position']}")
-     return place_results
+    # there are places with data_id in people_also_search_for results. Extracting them here.
+    if 'people_also_search_for' in serp_output['place_results']:
+        people_also_search_for = serp_output['place_results']['people_also_search_for'][0]['local_results']
+    else:
+        people_also_search_for = []
+        # forming dictionary to store all places. + 1 is for the place_results field
+    place_results = {
+        'search_metadata': [serp_output['search_metadata']] * (len(people_also_search_for) + 1),
+        'search_parameters': [serp_output['search_parameters']] * (len(people_also_search_for) + 1),
+        'search_information': [serp_output['search_information']] * (len(people_also_search_for) + 1),
+        'place_results': [],
+        'local_results': [],
+        'query_params': [f"{params['q']}_{params['ll']}"] * (len(people_also_search_for) + 1)
+    }
+    # appending the place results with data_id from the place_results field
+    place_results['place_results'].append(serp_output['place_results'])
+    place_results['local_results'].append('pr')
+    
+    # appending the place results with data_id from the people_also_search_for field
+    print(f"got people_also_search_for: {len(people_also_search_for)}")
+    for entry in people_also_search_for:
+        place_results['place_results'].append(entry)
+        place_results['local_results'].append(f"pasf_{entry['position']}")
+    return place_results
      
 
 def format_serp_output(params: Dict[str, Any], serp_output):
