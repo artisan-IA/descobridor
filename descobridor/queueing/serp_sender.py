@@ -18,7 +18,7 @@ def get_next_batch(): # TODO: implement
     """Get next batch of messages for the queue."""
     with MongoConnection("places") as db:
         cursor = db.collection.find(
-            {"data_id": None}, 
+            {"data_id": None, "unserpable": {"$ne": True}}, 
             {"place_id", "priority", "name", "coords", "data_id"}
             ).sort("priority", -1).limit(SERP_BATCH_SIZE)
         documents = list(cursor)

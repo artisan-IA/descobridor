@@ -50,22 +50,89 @@ def serp_search_place(
         if cached_output:
             print('using cached')
             serp_output = cached_output
-            print(f"linking back {serp_output['place_results']['title']} to {place_id=}")
-            link_back_to_place_id(serp_output['place_results'], place_id)
+            print(f"linking back {serp_output['place_results']['title']}")
+            link_back_to_place_id(serp_output['place_results'])
+            
+    if not use_cache or not cached_output:
+        serp_output = serp_search_no_cache(place_name, place_coord)
+        for entry in serp_output['place_results']:
+            entry = format_serp_entry(entry)
+            print(f"linking back {entry['title']}")
+            link_back_to_place_id(entry)
+        try:
+            cache_serp_output(serp_output)
+        except: # noqa E722
+            print(f"could not save {place_name=}")
+            
+    if is_unserpable:
+        mark_as_unserpable(place_id)
+
+
+
+def link_back_to_place_id(serp_entry: Dict[str, Any]) -> None:
+    """
+    When SERP API returns a surpluss of results, they are useless,
+    because they don't have a place_id.
+    This function searches for place_id and forms a proper places entry
+    It uploads these to places collection in MongoDB 
+    inserting if new or updating if place_id already exists.
+    """
+    coords = (serp_entry['gps_coordinates']['latitude'], 
+            serp_entry['gps_coordinates']['longitude'])
+    if 'place_id' not in serp_entry:
+        print(f"no place_id for {serp_entry['title']}, searching for it...")
+        google_place_details = hs.find_place_id(serp_entry['title'], coords, serp_entry['data_id'])
+        if google_place_details:
+            print(f"found {google_place_details['place_id']} for {serp_entry['title']}")
+            serp_entry['place_id'] = google_place_details['place_id']   
         else:
-            serp_output = serp_search_no_cache(place_name, place_coord)
-            print(serp_output)
-            for entry in serp_output['place_results']:
-                entry = format_serp_entry(entry)
-                print(f"linking {entry['title']} to {place_id=}")
-                link_back_to_place_id(entry, place_id)
-            try:
-                cache_serp_output(serp_output)
-            except: # noqa E722
-                print(f"could not save {place_name=}")
-     
+            print(f"could not find place_id for {serp_entry['title']}")
+            return None
+
+    # it is completely possible that place_id is not found
+    # and we still don't have a place_id in serp_entry
+    if 'place_id' in serp_entry:
+        place_id = serp_entry['place_id']
+            
+        with MongoConnection('places') as conn:
+            result = conn.collection.update_one(
+                {'place_id': place_id}, 
+                {'$set': {'data_id': serp_entry['data_id']}}
+            )
+        if result.matched_count == 1 and result.modified_count == 1:
+            print(f"updated {serp_entry['name']}"
+                  f"({serp_entry['place_id']}) with data_id {serp_entry['data_id']}")
+        elif result.matched_count == 1 and result.modified_count == 0:
+            print(f"data_id already exists for {serp_entry['name']}")
+        else:
+            add_new_to_places(serp_entry)
     
-    return read_serp_cache(place_id)
+
+### HEPLERS ###
+
+def is_unserpable(google_place_id: str) -> bool:
+    with MongoConnection('places') as conn:
+        result = conn.collection.find_one({'place_id': google_place_id})
+    if result['data_id']:
+        return False
+    else:
+        return True
+
+
+def mark_as_unserpable(google_place_id: str) -> None:
+    with MongoConnection('places') as conn:
+        conn.collection.update_one(
+            {'place_id': google_place_id}, 
+            {'$set': {'unserpable': True}}
+        )
+
+
+def add_new_to_places(serp_entry: Dict[str, Any]):
+    place_details = hs.format_places_df(serp_entry, serp_entry['data_id'])
+    record = place_details.loc[0].to_dict()
+    with MongoConnection('places') as conn:
+        conn.collection.insert_one(record)
+    print(f"new entry for {serp_entry['name']}")
 
 
 def _serp_coords_to_geometry(coords: Dict[str, Any]) -> Dict[str, Any]:
@@ -86,45 +153,6 @@ def format_serp_entry(entry: Dict[str, Any]) -> Dict[str, Any]:
     if 'address' in entry and 'formatted_address' not in entry:
         entry['formatted_address'] = entry['address']
     return entry
-
-
-def link_back_to_place_id(serp_entry: Dict[str, Any], place_id: str) -> None:
-    """
-    When SERP API returns a surpluss of results, they are useless,
-    because they don't have a place_id.
-    This function searches for place_id and forms a proper places entry
-    It uploads these to places collection in MongoDB 
-    inserting if new or updating if place_id already exists.
-    """
-    coords = (serp_entry['gps_coordinates']['latitude'], 
-            serp_entry['gps_coordinates']['longitude'])
-    if 'place_id' not in serp_entry:
-        print(f"no place_id for {serp_entry['title']}, searching for it...")
-        place_details_dict = hs.find_place_id(serp_entry['title'], coords, serp_entry['data_id'])    
-    else:
-        place_details_dict = serp_entry
-
-    # it is completely possible that place_id is not found
-    if place_details_dict:
-        place_id = place_details_dict['place_id']
-        with MongoConnection('places') as conn:
-            result = conn.collection.update_one(
-                {'place_id': place_id}, 
-                {'$set': {'data_id': serp_entry['data_id']}}
-            )
-        if result.raw_result['n'] == 0: # no entry found
-            place_details = hs.format_places_df(place_details_dict, place_details_dict['data_id'])
-            record = place_details.loc[0].to_dict()
-            with MongoConnection('places') as conn:
-                conn.collection.insert_one(record)
-            print(f"{record=}")
-            print(f"new entry for {place_details_dict['name']}")
-        else:
-            print(f"updated {place_details_dict['name']}"
-                  f"({place_details_dict['place_id']}) with data_id {place_details_dict['data_id']}")
-    
-
-### HEPLERS ###
 
 
 def convert_local_results_to_place_results(serp_output: Dict[str, Any], params: Dict[str, Any]):
