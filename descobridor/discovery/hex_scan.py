@@ -105,9 +105,10 @@ def _add_location_columns(all_places: pd.DataFrame, search_hex7) -> pd.DataFrame
     """
     all_places = all_places.copy()
     all_places.loc[:, 'coords'] = all_places.geometry.apply(_get_lat_long)
-    all_places.loc[:, f'hex{SUB_HEX_SIZE}'] = all_places.coords.apply(lambda x: h3.geo_to_h3(*x, SUB_HEX_SIZE))
+    all_places.loc[:, f'loc_hex{SUB_HEX_SIZE}'] = all_places.coords.apply(
+        lambda x: h3.geo_to_h3(*x, SUB_HEX_SIZE))
     all_places.loc[:, 'search_hex7'] = search_hex7
-    all_places.loc[:, 'actual_hex7'] = all_places.coords.apply(lambda x: h3.geo_to_h3(*x, 7))
+    all_places.loc[:, 'loc_hex7'] = all_places.coords.apply(lambda x: h3.geo_to_h3(*x, 7))
     return all_places
 
 
@@ -119,9 +120,11 @@ def _add_query_boilerplate(all_places: pd.DataFrame, query: str, data_id: str) -
     all_places = all_places.copy()
     all_places.loc[:, 'query'] = query
     all_places.loc[:, 'query_ds'] = str(date.today())
-    all_places.loc[:, 'reviews_extracted'] = False
-    all_places.loc[:, 'reviwes_extraction_ds'] = None
-    all_places.loc[:, 'data_id'] = None
+    all_places.loc[:, 'reviews_extracted_local_lang'] = False
+    all_places.loc[:, 'review_extr_ds_local_lang'] = None
+    all_places.loc[:, 'reviews_extracted_en'] = False
+    all_places.loc[:, 'review_extr_ds_en'] = None
+    all_places.loc[:, 'data_id'] = data_id
     all_places['all_queries'] = [[query]] * len(all_places)
     return all_places
      
@@ -133,37 +136,30 @@ def _get_lat_long(geometry: Dict[str, Dict[str, float]]):
     return geometry['location']['lat'], geometry['location']['lng']
 
 
-def gmaps_places_output_schema():
+def places_output_schema():
     """
     probably not the best place for this, but it's the only place it's used
     """
     return {
-            'business_status',
             'formatted_address',
-            'geometry',
-            'icon',
             'name',
-            'opening_hours',
-            'photos',
             'place_id',
-            'plus_code',
-            'price_level',
-            'rating',
-            'reference',
-            'types',
-            'user_ratings_total',
-            'vicinity',
-            'hex7',
+            'types_en',
+            'loc_hex7',
+            'loc_hex9',
             'coords',
             'search_hex7',
-            'actual_hex7',
-            'query',
+            'search_hex9',
+            'search_query',
             'query_ds',
-            'reviews_extracted',
-            'reviwes_extraction_ds',
+            'reviews_extracted_local_lang',
+            'review_extr_ds_local_lang',
+            'reviews_extracted_en',
+            'review_extr_ds_en',
+            'permanent_closed',
             'data_id',
             'all_queries',
-            'local_types'
+            'priority'
     }
     
     
@@ -199,12 +195,12 @@ def format_place_details(place_details_dict: Dict[str, Any], data_id: str) -> pd
     returns: a dataframe, matching the schema of gmaps_places_output 
     ready to be inserted into the database
     """
-    place_details_dict['local_types'] = place_details_dict['types']
+    place_details_dict['types_en'] = place_details_dict['types']
     place_details_dict.pop('types')
-    place_details_df = pd.DataFrame(dict(
+    place_details_df = pd.DataFrame(dict
         (k, [v]) for k, v in place_details_dict.items() 
-        if k in gmaps_places_output_schema()
-        ))
+        if k in places_output_schema()
+        )
     place_details_df = _add_location_columns(place_details_df, None)
     place_details_df = _add_query_boilerplate(place_details_df, query=None, data_id=data_id)
     return place_details_df

@@ -60,7 +60,7 @@ def serp_search_place(
      
      try:
           cache_serp_output(serp_output)
-     except:
+     except: # noqa E722
           print(f"could not save {place_name=}")
      return read_serp_cache(place_id)
 
@@ -79,12 +79,12 @@ def link_back_to_place_id(serp_entry: Dict[str, Any]) -> None:
      # it is theoretically possible that place_id is not found
      if place_details_dict:
           place_id = place_details_dict['place_id']
-          with MongoConnection('gmaps_places_output') as conn:
+          with MongoConnection('places') as conn:
                result = conn.collection.update_one(
                     {'place_id': place_id}, 
-                    {'$set': {'data_id': serp_entry['data_id'], 'local_types': serp_entry['type']}}
+                    {'$set': {'data_id': serp_entry['data_id']}}
                )
-          if result.raw_result['n'] == 0:
+          if result.raw_result['n'] == 0: # no entry found
                place_details = hs.format_place_details(place_details_dict, serp_entry['data_id'])
                record = place_details.loc[0].to_dict()
                with MongoConnection('gmaps_places_output') as conn:

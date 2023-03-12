@@ -3,14 +3,27 @@
 import os
 import sys
 import pika
-from descobridor.queueing.constants import SERP_QUEUE_NAME, DIRECT_EXCHANGE
-from descobridor.queueing.queues import serp_queue
-# from truby.db_connection import MongoConnection
+import json
+from pathlib import Path
+
+scrptdir = Path("~/artesania/descobridor").expanduser()
+os.chdir(scrptdir)
+
+from descobridor.queueing.constants import SERP_QUEUE_NAME, DIRECT_EXCHANGE, SERP_BATCH_SIZE # noqa E402
+from descobridor.queueing.queues import serp_queue # noqa E402
+from truby.db_connection import MongoConnection # noqa E402
 
 
 def get_next_batch(): # TODO: implement
     """Get next batch of messages for the queue."""
-    return [f"id={i}" for i in range(10)]
+    with MongoConnection("places") as db:
+        cursor = db.collection.find(
+            {"data_id": None}, 
+            {"place_id", "priority", "name", "coords", "data_id"}
+            ).sort("priority", -1).limit(SERP_BATCH_SIZE)
+        documents = list(cursor)
+        [doc.pop("_id") for doc in documents]
+        return documents
 
 
 def is_queue_available():
@@ -18,23 +31,12 @@ def is_queue_available():
     # print(queue.method.message_count)
     ...
     return True
-
-
-def send_alret():
-    """Send an alert to the admin."""
-    ...
-    
-    
-def go_to_sleep():
-    """Stop all the activity, util the new month starts.
-    Will take rewriting the cron job.
-    """
-    ...
     
     
 def append_to_queue(channel, next_batch):
     """Append messages to the queue."""
-    for message in next_batch:
+    for doc in next_batch:
+        message = json.dumps(doc)
         channel.basic_publish(
             exchange=DIRECT_EXCHANGE,
             routing_key=SERP_QUEUE_NAME,
