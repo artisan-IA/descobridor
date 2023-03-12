@@ -105,10 +105,12 @@ def _add_location_columns(all_places: pd.DataFrame, search_hex7) -> pd.DataFrame
     """
     all_places = all_places.copy()
     all_places.loc[:, 'coords'] = all_places.geometry.apply(_get_lat_long)
+    all_places.drop(columns='geometry', inplace=True)
     all_places.loc[:, f'loc_hex{SUB_HEX_SIZE}'] = all_places.coords.apply(
         lambda x: h3.geo_to_h3(*x, SUB_HEX_SIZE))
     all_places.loc[:, 'search_hex7'] = search_hex7
     all_places.loc[:, 'loc_hex7'] = all_places.coords.apply(lambda x: h3.geo_to_h3(*x, 7))
+        
     return all_places
 
 
@@ -190,17 +192,20 @@ def find_place_id(place_name: str, place_coord: Tuple[float, float]) -> Union[di
             print("place name in SERP doesn't match place found by google")
           
           
-def format_place_details(place_details_dict: Dict[str, Any], data_id: str) -> pd.DataFrame:
+def format_places_df(place_dict: Dict[str, Any], data_id: str) -> pd.DataFrame:
     """
     returns: a dataframe, matching the schema of gmaps_places_output 
     ready to be inserted into the database
     """
-    place_details_dict['types_en'] = place_details_dict['types']
-    place_details_dict.pop('types')
-    place_details_df = pd.DataFrame(dict
-        (k, [v]) for k, v in place_details_dict.items() 
-        if k in places_output_schema()
-        )
+    if 'types' in place_dict:
+        place_dict['types_en'] = place_dict['types']
+        place_dict.pop('types')
+    else:
+        place_dict['types_en'] = []
+    place_details_df = pd.DataFrame(dict( # noqa C402
+        (k, [v]) for k, v in place_dict.items() 
+        if (k in places_output_schema() or k == 'geometry')
+        ))
     place_details_df = _add_location_columns(place_details_df, None)
     place_details_df = _add_query_boilerplate(place_details_df, query=None, data_id=data_id)
     return place_details_df

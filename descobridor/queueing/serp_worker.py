@@ -3,28 +3,22 @@ import os
 import time
 from datetime import datetime
 from random import random
-from pathlib import Path
+import json
 
-scrptdir = Path("~/artesania/descobridor").expanduser()
-os.chdir(scrptdir)
     
 
 from descobridor.queueing.queues import serp_queue # noqa E402
-
+from descobridor.discovery.serp_api import serp_search_place
 
 
 def callback(ch, method, properties, body):
     print(f" [x] Received {body} at {datetime.now().strftime('%H:%M:%S')}")
     time.sleep(1)
-    status = is_serp_limit_reached()
+    record = json.loads(body)
+    _ = serp_search_place(record["place_id"], record["name"], record["coords"], use_cache=True)
     print(f" [x] Done at {datetime.now().strftime('%H:%M:%S')}")
-    if status:
-        ch.basic_ack(delivery_tag = method.delivery_tag)
-    else:
-        # need some kind of negative acknolwedgement here
-        time.sleep(1)
-        print("No luck this time.")
-        ch.basic_ack(delivery_tag = method.delivery_tag)
+    ch.basic_ack(delivery_tag = method.delivery_tag)
+    
     
 def is_serp_limit_reached():
     """Check if the limit of our SERP requests has been reached."""
