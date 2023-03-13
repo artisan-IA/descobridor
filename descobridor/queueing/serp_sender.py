@@ -24,13 +24,6 @@ def get_next_batch(): # TODO: implement
         documents = list(cursor)
         [doc.pop("_id") for doc in documents]
         return documents
-
-
-def is_queue_available():
-    """Check if there are messages in the queue."""
-    # print(queue.method.message_count)
-    ...
-    return True
     
     
 def append_to_queue(channel, next_batch):
@@ -48,10 +41,10 @@ def append_to_queue(channel, next_batch):
         
         
 def main():
-    channel, queue_name = serp_queue()
+    connection, channel, queue_name = serp_queue()
     next_batch = get_next_batch()
-    if is_queue_available():
-        append_to_queue(channel, next_batch)
+    append_to_queue(channel, next_batch)
+    connection.close()
         
         
 if __name__ == '__main__':

@@ -2,37 +2,33 @@ import sys
 import os
 import time
 from datetime import datetime
-from random import random
 import json
 
     
 
-from descobridor.queueing.queues import serp_queue # noqa E402
-from descobridor.discovery.serp_api import serp_search_place
+from descobridor.queueing.queues import serp_queue 
+from descobridor.queueing.constants import SERP_QUEUE_NAME
+from descobridor.discovery.serp_api import serp_search_place, OutOfRequestsError
+from descobridor.queueing.change_serpjob_freq import postpone_job
 
 
 def callback(ch, method, properties, body):
     print(f" [x] Received {body} at {datetime.now().strftime('%H:%M:%S')}")
     time.sleep(1)
     record = json.loads(body)
-    _ = serp_search_place(record["place_id"], record["name"], record["coords"], use_cache=True)
-    print(f" [x] Done at {datetime.now().strftime('%H:%M:%S')}")
-    ch.basic_ack(delivery_tag = method.delivery_tag)
-    
-    
-def is_serp_limit_reached():
-    """Check if the limit of our SERP requests has been reached."""
-    if random() > 0.8:
-        return False
+    try:
+        _ = serp_search_place(record["place_id"], record["name"], record["coords"], use_cache=True)
+    except OutOfRequestsError:
+        postpone_job()
+        ch.queue_purge(queue=SERP_QUEUE_NAME)
+        ch.basic_ack(delivery_tag = method.delivery_tag)
     else:
-        return True
-        
+        print(f" [x] Done at {datetime.now().strftime('%H:%M:%S')}")
+        ch.basic_ack(delivery_tag = method.delivery_tag)
 
 
 def main():
-    channel, queue_name = serp_queue()
-    # This tells RabbitMQ not to give more than one message to a worker at a time.
-    channel.basic_qos(prefetch_count=1)
+    connection, channel, queue_name = serp_queue()
     channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=False)
 
 

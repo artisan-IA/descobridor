@@ -50,6 +50,7 @@ def serp_search_place(
         if cached_output:
             print('using cached')
             serp_output = cached_output
+            serp_output['place_results']['name'] = serp_output['place_results']['title']
             print(f"linking back {serp_output['place_results']['title']}")
             link_back_to_place_id(serp_output['place_results'])
             
@@ -202,17 +203,19 @@ def get_all_places_from_place_results(serp_output: Dict[str, Any], params: Dict[
      
 
 def format_serp_output(params: Dict[str, Any], serp_output):
-     if 'place_results' in serp_output:
-          place_results = get_all_places_from_place_results(serp_output, params)
-          formatted = pd.DataFrame(place_results)
-     elif 'local_results' in serp_output:
-          formatted = pd.DataFrame(convert_local_results_to_place_results(serp_output, params))
-     else:
-          raise ValueError(f"Unexpected SERP output: {serp_output}")
+    if 'place_results' in serp_output:
+        place_results = get_all_places_from_place_results(serp_output, params)
+        formatted = pd.DataFrame(place_results)
+    elif 'local_results' in serp_output:
+        formatted = pd.DataFrame(convert_local_results_to_place_results(serp_output, params))
+    elif 'error' in serp_output:
+        raise OutOfRequestsError(f"Out of requests: {serp_output['error']}")
+    else:
+        raise ValueError(f"Unexpected SERP output: {serp_output}")
 
-     formatted['query_ds'] = date.today().strftime("%Y-%m-%d")
-     formatted['query_dt'] = datetime.now()
-     return formatted
+    formatted['query_ds'] = date.today().strftime("%Y-%m-%d")
+    formatted['query_dt'] = datetime.now()
+    return formatted
 
 def cache_serp_output(serp_output: pd.DataFrame):
      conn = MongoConnection("serp_cache")
@@ -227,6 +230,10 @@ def read_serp_cache(place_id: str):
      # in different fields. We only need data_id, so taking any of them is fine.
      if len(cached) > 0:
           return cached[0]
+      
+      
+class OutOfRequestsError(Exception):
+    pass
      
      
 

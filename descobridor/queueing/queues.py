@@ -17,4 +17,4 @@ def serp_queue():
     channel.queue_bind(
             exchange=DIRECT_EXCHANGE, queue=SERP_QUEUE_NAME)
     channel.confirm_delivery()
-    return channel, SERP_QUEUE_NAME
+    return connection, channel, SERP_QUEUE_NAME

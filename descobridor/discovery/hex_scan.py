@@ -2,7 +2,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 import h3
 import os
 import pandas as pd
-from datetime import date
+from datetime import date, datetime
 import googlemaps
 import time
 from dotenv import load_dotenv
@@ -127,6 +127,7 @@ def _add_query_boilerplate(all_places: pd.DataFrame, query: str, data_id: str) -
     all_places.loc[:, 'reviews_extracted_en'] = False
     all_places.loc[:, 'review_extr_ds_en'] = None
     all_places.loc[:, 'data_id'] = data_id
+    all_places.loc[:, "added_at"] = datetime.now()
     all_places['all_queries'] = [[query]] * len(all_places)
     return all_places
      
@@ -162,7 +163,8 @@ def places_output_schema():
             'data_id',
             'all_queries',
             'priority',
-            'unserpable'
+            'unserpable',
+            "added_at"
     }
     
     
