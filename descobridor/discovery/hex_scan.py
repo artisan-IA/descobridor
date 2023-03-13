@@ -2,7 +2,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 import h3
 import os
 import pandas as pd
-from datetime import date
+from datetime import date, datetime
 import googlemaps
 import time
 from dotenv import load_dotenv
@@ -105,9 +105,12 @@ def _add_location_columns(all_places: pd.DataFrame, search_hex7) -> pd.DataFrame
     """
     all_places = all_places.copy()
     all_places.loc[:, 'coords'] = all_places.geometry.apply(_get_lat_long)
-    all_places.loc[:, f'hex{SUB_HEX_SIZE}'] = all_places.coords.apply(lambda x: h3.geo_to_h3(*x, SUB_HEX_SIZE))
+    all_places.drop(columns='geometry', inplace=True)
+    all_places.loc[:, f'loc_hex{SUB_HEX_SIZE}'] = all_places.coords.apply(
+        lambda x: h3.geo_to_h3(*x, SUB_HEX_SIZE))
     all_places.loc[:, 'search_hex7'] = search_hex7
-    all_places.loc[:, 'actual_hex7'] = all_places.coords.apply(lambda x: h3.geo_to_h3(*x, 7))
+    all_places.loc[:, 'loc_hex7'] = all_places.coords.apply(lambda x: h3.geo_to_h3(*x, 7))
+        
     return all_places
 
 
@@ -119,9 +122,12 @@ def _add_query_boilerplate(all_places: pd.DataFrame, query: str, data_id: str) -
     all_places = all_places.copy()
     all_places.loc[:, 'query'] = query
     all_places.loc[:, 'query_ds'] = str(date.today())
-    all_places.loc[:, 'reviews_extracted'] = False
-    all_places.loc[:, 'reviwes_extraction_ds'] = None
-    all_places.loc[:, 'data_id'] = None
+    all_places.loc[:, 'reviews_extracted_local_lang'] = False
+    all_places.loc[:, 'review_extr_ds_local_lang'] = None
+    all_places.loc[:, 'reviews_extracted_en'] = False
+    all_places.loc[:, 'review_extr_ds_en'] = None
+    all_places.loc[:, 'data_id'] = data_id
+    all_places.loc[:, "added_at"] = datetime.now()
     all_places['all_queries'] = [[query]] * len(all_places)
     return all_places
      
@@ -133,41 +139,36 @@ def _get_lat_long(geometry: Dict[str, Dict[str, float]]):
     return geometry['location']['lat'], geometry['location']['lng']
 
 
-def gmaps_places_output_schema():
+def places_output_schema():
     """
     probably not the best place for this, but it's the only place it's used
     """
     return {
-            'business_status',
             'formatted_address',
-            'geometry',
-            'icon',
             'name',
-            'opening_hours',
-            'photos',
             'place_id',
-            'plus_code',
-            'price_level',
-            'rating',
-            'reference',
-            'types',
-            'user_ratings_total',
-            'vicinity',
-            'hex7',
+            'types_en',
+            'loc_hex7',
+            'loc_hex9',
             'coords',
             'search_hex7',
-            'actual_hex7',
-            'query',
+            'search_hex9',
+            'search_query',
             'query_ds',
-            'reviews_extracted',
-            'reviwes_extraction_ds',
+            'reviews_extracted_local_lang',
+            'review_extr_ds_local_lang',
+            'reviews_extracted_en',
+            'review_extr_ds_en',
+            'permanent_closed',
             'data_id',
             'all_queries',
-            'local_types'
+            'priority',
+            'unserpable',
+            "added_at"
     }
     
     
-def find_place_id(place_name: str, place_coord: Tuple[float, float]) -> Union[dict, None]:
+def find_place_id(place_name: str, place_coord: Tuple[float, float], data_id: str) -> Union[dict, None]:
     """
     SERP ARI sometimes returns extra places on top of the searched ones
     These places don't have a place_id, 
@@ -187,26 +188,56 @@ def find_place_id(place_name: str, place_coord: Tuple[float, float]) -> Union[di
     except IndexError:
         print('no place id found for', place_name)
     else:
-        place_details = gmaps.place(place_id=place_id, language='es')['result']
+        place_details = gmaps.place(place_id=place_id, language='en')['result']
         if place_details['name'] == place_name:
+            place_details['data_id'] = data_id
             return place_details
         else:
             print("place name in SERP doesn't match place found by google")
           
           
-def format_place_details(place_details_dict: Dict[str, Any], data_id: str) -> pd.DataFrame:
+def format_places_df(place_dict: Dict[str, Any], data_id: str) -> pd.DataFrame:
     """
     returns: a dataframe, matching the schema of gmaps_places_output 
     ready to be inserted into the database
     """
-    place_details_dict['local_types'] = place_details_dict['types']
-    place_details_dict.pop('types')
-    place_details_df = pd.DataFrame(dict(
-        (k, [v]) for k, v in place_details_dict.items() 
-        if k in gmaps_places_output_schema()
+    # TODO change to copying the dict
+    handle_place_types(place_dict)
+    add_default_priority(place_dict)
+    add_default_unserpable(place_dict)
+    place_details_df = pd.DataFrame(dict( # noqa C402
+        (k, [v]) for k, v in place_dict.items() 
+        if (k in places_output_schema() or k == 'geometry')
         ))
     place_details_df = _add_location_columns(place_details_df, None)
     place_details_df = _add_query_boilerplate(place_details_df, query=None, data_id=data_id)
     return place_details_df
+
+
+def handle_place_types(place_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    depending on the API used, the place types might or might not exist
+    if they exist however, we need to indicate that they are in english
+    Because latere we'll have other languages present
+    """
+    if 'types' in place_dict:
+        place_dict['types_en'] = place_dict['types']
+        place_dict.pop('types')
+    else:
+        place_dict['types_en'] = []
+
+
+def add_default_priority(place_dict: Dict[str, Any]) -> Dict[str, Any]:
+    if 'priority' not in place_dict:
+        # TODO should not be in the general scanner
+        if set(place_dict['tyres_en']).intersection({'restaurant', 'cafe', 'food', 'bar'}):
+            place_dict['priority'] = 2
+        else:
+            place_dict['priority'] = 1
+
+
+def add_default_unserpable(place_dict: Dict[str, Any]) -> Dict[str, Any]:
+    if 'unserpable' not in place_dict:
+        place_dict['unserpable'] = False
     
 
