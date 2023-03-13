@@ -188,7 +188,7 @@ def find_place_id(place_name: str, place_coord: Tuple[float, float], data_id: st
     except IndexError:
         print('no place id found for', place_name)
     else:
-        place_details = gmaps.place(place_id=place_id, language='es')['result']
+        place_details = gmaps.place(place_id=place_id, language='en')['result']
         if place_details['name'] == place_name:
             place_details['data_id'] = data_id
             return place_details
@@ -215,6 +215,11 @@ def format_places_df(place_dict: Dict[str, Any], data_id: str) -> pd.DataFrame:
 
 
 def handle_place_types(place_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    depending on the API used, the place types might or might not exist
+    if they exist however, we need to indicate that they are in english
+    Because latere we'll have other languages present
+    """
     if 'types' in place_dict:
         place_dict['types_en'] = place_dict['types']
         place_dict.pop('types')
@@ -224,7 +229,11 @@ def handle_place_types(place_dict: Dict[str, Any]) -> Dict[str, Any]:
 
 def add_default_priority(place_dict: Dict[str, Any]) -> Dict[str, Any]:
     if 'priority' not in place_dict:
-        place_dict['priority'] = 1
+        # TODO should not be in the general scanner
+        if set(place_dict['tyres_en']).intersection({'restaurant', 'cafe', 'food', 'bar'}):
+            place_dict['priority'] = 2
+        else:
+            place_dict['priority'] = 1
 
 
 def add_default_unserpable(place_dict: Dict[str, Any]) -> Dict[str, Any]:

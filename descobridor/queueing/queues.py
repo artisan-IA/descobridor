@@ -1,7 +1,8 @@
+from typing import Tuple
 import pika
 from descobridor.queueing.constants import SERP_QUEUE_NAME, DIRECT_EXCHANGE
 
-def serp_queue():
+def serp_queue() -> Tuple[pika.BlockingConnection, pika.adapters.blocking_connection.BlockingChannel, str]:
     # publisher confirms
     """Connect to the queue."""
     connection = pika.BlockingConnection(

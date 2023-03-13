@@ -1,5 +1,6 @@
 import subprocess
 import argparse
+from typing import List
 
 """
 crontab example:
@@ -10,14 +11,14 @@ crontab example:
     &1)
 """
 
-def read_cronjobs():
+def read_cronjobs() -> List[str]:
     """Read the current cronjob list"""
     cronjob = subprocess.Popen(["crontab", "-l"], stdout=subprocess.PIPE)
     cronjobs = cronjob.stdout.read().decode("utf-8").split("\n")
     return cronjobs
 
 
-def append_resume_job(cronjobs):
+def append_resume_job(cronjobs: List[str]) -> None:
     """Append the job to the cronjob list"""
     cronjobs.append(
         "0 17 8 * * (cd /Users/eliza/artesania/descobridor "
@@ -28,7 +29,7 @@ def append_resume_job(cronjobs):
     )
     
     
-def remove_resume_job(cronjobs):
+def remove_resume_job(cronjobs: List[str]) -> None:
     """Remove the job from the cronjob list"""
     for (i, line) in enumerate(cronjobs):
         if "change_serpjob_freq.py" in line:
@@ -36,7 +37,7 @@ def remove_resume_job(cronjobs):
             break
     
 
-def change_serp_job_time(cronjobs, new_time):
+def change_serp_job_time(cronjobs: List[str], new_time: str) -> None:
     for (i, line) in enumerate(cronjobs):
         if "serp_sender.py" in line:
             print(line)
@@ -44,7 +45,8 @@ def change_serp_job_time(cronjobs, new_time):
             new_line = f"{new_time} /{partitions[2]}"
             cronjobs[i] = new_line
             
-def postpone_job():
+def postpone_job() -> None:
+    """messes up with the cronjob list. could be improved"""
     cronjobs = read_cronjobs()
     change_serp_job_time(cronjobs, "0 16 8 * *")
     append_resume_job(cronjobs)
@@ -54,7 +56,8 @@ def postpone_job():
     )
     
 
-def resume_job():
+def resume_job() -> None:
+    """messes up with the cronjob list. could be improved"""
     cronjobs = read_cronjobs()
     change_serp_job_time(cronjobs, "*/10 * * * *")
     remove_resume_job(cronjobs)
