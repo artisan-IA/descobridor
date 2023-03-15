@@ -2,8 +2,10 @@ import os
 import sys
 import redis
 import time
+import json
 
 from descobridor.queueing.queues import gmaps_scrape_queue, bind_client_to_gmaps_scrape
+from descobridor.discovery.read_raw_reviews import extract_all_reviews
 
 
 def ensure_vpn_freshness():
@@ -25,7 +27,8 @@ def ensure_vpn_freshness():
 
 def callback(ch, method, properties, body):
     ensure_vpn_freshness()
-    
+    gmaps_entry = json.loads(body)["gmaps_entry"]
+    extract_all_reviews(gmaps_entry)
     
     
 def main():
