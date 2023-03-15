@@ -6,7 +6,7 @@ import json
 
     
 
-from descobridor.queueing.queues import serp_queue 
+from descobridor.queueing.queues import serp_queue, bind_client_to_serp_queue
 from descobridor.queueing.constants import SERP_QUEUE_NAME
 from descobridor.discovery.serp_api import serp_search_place, OutOfRequestsError
 from descobridor.queueing.change_serpjob_freq import postpone_job
@@ -29,6 +29,7 @@ def callback(ch, method, properties, body):
 
 def main():
     connection, channel, queue_name = serp_queue()
+    bind_client_to_serp_queue(channel)
     channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=False)
 
 

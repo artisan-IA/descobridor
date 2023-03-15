@@ -3,7 +3,7 @@ import sys
 import redis
 import time
 
-from descobridor.queueing.queues import gmaps_scrape_queue
+from descobridor.queueing.queues import gmaps_scrape_queue, bind_client_to_gmaps_scrape
 
 
 def ensure_vpn_freshness():
@@ -30,6 +30,7 @@ def callback(ch, method, properties, body):
     
 def main():
     connection, channel, queue_name = gmaps_scrape_queue()
+    bind_client_to_gmaps_scrape(channel)
     channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=False)
 
 

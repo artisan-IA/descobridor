@@ -1,10 +1,10 @@
-from typing import Tuple
+from typing import Tuple, Optional
 import pika
 from descobridor.queueing.constants import (
     DIRECT_EXCHANGE, TOPIC_EXCHANGE,
     SERP_QUEUE_NAME, SERP_QUEUE_MAX_LENGTH, SERP_QUEUE_MAX_PRIORITY,
     GMAPS_SCRAPE_QUEUE_MAX_LENGTH, GMAPS_SCRAPE_QUEUE_MAX_PRIORITY,
-    GMAPS_SCRAPE_QUEUE_NAME
+    GMAPS_SCRAPE_QUEUE_NAME, GMAPS_SCRAPE_KEY
 )
 
 
@@ -23,10 +23,17 @@ def serp_queue() -> Tuple[pika.BlockingConnection, pika.adapters.blocking_connec
                    'x-max-length': SERP_QUEUE_MAX_LENGTH, 
                    'x-overflow': 'reject-publish'}
         )
-    channel.queue_bind(
-            exchange=DIRECT_EXCHANGE, queue=SERP_QUEUE_NAME)
     channel.confirm_delivery()
     return connection, channel, SERP_QUEUE_NAME
+
+
+def bind_client_to_serp_queue(
+    channel: pika.adapters.blocking_connection.BlockingChannel, 
+    ):
+    channel.queue_bind(
+        exchange=DIRECT_EXCHANGE, 
+        queue=SERP_QUEUE_NAME
+        )
 
 
 def gmaps_scrape_queue():
@@ -42,3 +49,17 @@ def gmaps_scrape_queue():
                    'x-max-length': GMAPS_SCRAPE_QUEUE_MAX_LENGTH, 
                    'x-overflow': 'reject-publish'}
         )
+    channel.confirm_delivery()
+    return connection, channel, GMAPS_SCRAPE_QUEUE_NAME
+    
+    
+def bind_client_to_gmaps_scrape(
+    channel: pika.adapters.blocking_connection.BlockingChannel, 
+    routing_key: Optional[str] = GMAPS_SCRAPE_KEY
+    ):
+    channel.queue_bind(
+        exchange=TOPIC_EXCHANGE, 
+        queue=GMAPS_SCRAPE_QUEUE_NAME, 
+        routing_key=routing_key
+        )
+    
