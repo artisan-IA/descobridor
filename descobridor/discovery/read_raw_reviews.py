@@ -66,11 +66,12 @@ def find_latest_available_review_date(place_id: str):
 
 
 def store_reviews(reviwes):
-    # TODO FIX but why??
+    # TODO FIX but why?? seems alright
     with MongoConnection("reviews") as conn:
         conn.collection.insert_many(reviwes)
      
      
+# this blasted function is too long
 def extract_all_reviews(gmaps_entry: Dict[str, Any]):
     data_id = gmaps_entry['data_id']
     if not data_id:

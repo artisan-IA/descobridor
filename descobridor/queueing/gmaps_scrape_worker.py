@@ -5,7 +5,7 @@ import time
 import json
 
 from descobridor.queueing.queues import gmaps_scrape_queue, bind_client_to_gmaps_scrape
-from descobridor.discovery.read_raw_reviews import extract_all_reviews
+from descobridor.discovery.read_raw_reviews import extract_all_reviews # noqa F401
 
 
 def ensure_vpn_freshness():
@@ -28,13 +28,17 @@ def ensure_vpn_freshness():
 def callback(ch, method, properties, body):
     ensure_vpn_freshness()
     gmaps_entry = json.loads(body)["gmaps_entry"]
-    extract_all_reviews(gmaps_entry)
+    #extract_all_reviews(gmaps_entry)
+    print(" [x] Received %r" % gmaps_entry)
+    time.sleep(1)
+    print(" [x] Done")
     
     
 def main():
     connection, channel, queue_name = gmaps_scrape_queue()
     bind_client_to_gmaps_scrape(channel)
     channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=False)
+    # we need to consume from a specific topic, not queue. gotta figure out this bit
 
 
     print(' [*] Waiting for messages. To exit press CTRL+C')
