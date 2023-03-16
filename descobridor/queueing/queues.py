@@ -4,7 +4,7 @@ from descobridor.queueing.constants import (
     DIRECT_EXCHANGE, TOPIC_EXCHANGE,
     SERP_QUEUE_NAME, SERP_QUEUE_MAX_LENGTH, SERP_QUEUE_MAX_PRIORITY,
     GMAPS_SCRAPE_QUEUE_MAX_LENGTH, GMAPS_SCRAPE_QUEUE_MAX_PRIORITY,
-    GMAPS_SCRAPE_QUEUE_NAME, GMAPS_SCRAPE_KEY
+    GMAPS_SCRAPE_KEY
 )
 
 
@@ -43,14 +43,14 @@ def gmaps_scrape_queue():
     channel = connection.channel()
     channel.exchange_declare(exchange=TOPIC_EXCHANGE, exchange_type='topic', durable=True)
     channel.queue_declare(
-        queue=GMAPS_SCRAPE_QUEUE_NAME, 
+        queue=GMAPS_SCRAPE_KEY, 
         durable=True,
         arguments={"x-max-priority": GMAPS_SCRAPE_QUEUE_MAX_PRIORITY, 
                    'x-max-length': GMAPS_SCRAPE_QUEUE_MAX_LENGTH, 
                    'x-overflow': 'reject-publish'}
         )
     channel.confirm_delivery()
-    return connection, channel, GMAPS_SCRAPE_QUEUE_NAME
+    return connection, channel, GMAPS_SCRAPE_KEY
     
     
 def bind_client_to_gmaps_scrape(
@@ -59,7 +59,7 @@ def bind_client_to_gmaps_scrape(
     ):
     channel.queue_bind(
         exchange=TOPIC_EXCHANGE, 
-        queue=GMAPS_SCRAPE_QUEUE_NAME, 
+        queue=GMAPS_SCRAPE_KEY, 
         routing_key=routing_key
         )
     
