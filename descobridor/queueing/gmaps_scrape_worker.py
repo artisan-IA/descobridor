@@ -27,7 +27,7 @@ def ensure_vpn_freshness():
 
 def callback(ch, method, properties, body):
     ensure_vpn_freshness()
-    gmaps_entry = json.loads(body)["gmaps_entry"]
+    gmaps_entry = json.loads(body)
     #extract_all_reviews(gmaps_entry)
     print(" [x] Received %r" % gmaps_entry)
     time.sleep(1)

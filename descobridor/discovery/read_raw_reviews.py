@@ -72,7 +72,11 @@ def store_reviews(reviwes):
      
      
 # this blasted function is too long
-def extract_all_reviews(gmaps_entry: Dict[str, Any]):
+def extract_all_reviews(gmaps_entry: Dict[str, Any]) -> None:
+    """
+    :param gmaps_entry: a dictionary with the following keys:
+        place_id: str, data_id: str
+    """
     data_id = gmaps_entry['data_id']
     if not data_id:
         serp_output = sa.serp_search_place(

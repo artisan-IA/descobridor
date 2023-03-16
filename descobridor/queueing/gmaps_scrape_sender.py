@@ -6,7 +6,7 @@ import json
 
 from descobridor.queueing.queues import gmaps_scrape_queue
 from truby.db_connection import MongoConnection
-from descobridor.queueing.constants import SERP_BATCH_SIZE, GMAPS_SCRAPE_QUEUE_NAME, TOPIC_EXCHANGE
+from descobridor.queueing.constants import SERP_BATCH_SIZE, GMAPS_SCRAPE_KEY, TOPIC_EXCHANGE
 
 
 def get_next_batch():
@@ -22,12 +22,13 @@ def get_next_batch():
         cursor = db.collection.find(
             {"data_id": {"$ne": None}, 
              "unscrapable": {"$ne": True},
-             "scrape_time": {"$lt": 10} # this gotta be fixed
+             # "scrape_time": {"$lt": 10} # this gotta be fixed
              }, 
-            {"place_id", "priority", "name", "coords", "data_id"}
+            {"place_id", "priority", "name", "data_id"}
             ).sort("priority", -1).limit(SERP_BATCH_SIZE)
         documents = list(cursor)
         [doc.pop("_id") for doc in documents]
+        print(f"Got {len(documents)} documents")
         return documents
     
 
@@ -37,12 +38,13 @@ def append_to_queue(channel: pika.adapters.blocking_connection.BlockingChannel, 
         message = json.dumps(doc) # not entirely, worker expects 'gmaps_entry' key
         channel.basic_publish(
             exchange=TOPIC_EXCHANGE,
-            routing_key=GMAPS_SCRAPE_QUEUE_NAME,
+            routing_key=GMAPS_SCRAPE_KEY,
             body=message,
             mandatory=True,
             properties=pika.BasicProperties(
                 delivery_mode = pika.spec.PERSISTENT_DELIVERY_MODE
         ))
+        print(f"Sent {doc['place_id']}")
         
     
 
