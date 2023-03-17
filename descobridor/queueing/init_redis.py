@@ -1,10 +1,9 @@
 from typing import Tuple
 import os
-from scipy.stats import norm # noqa F401
 
 from truby.db_connection import RedisConnection
 from descobridor.queueing.constants import (
-    VPN_COUNTRIES # noqa F401
+    VPN_COUNTRIES
 )
 
 
@@ -25,7 +24,14 @@ def get_vpns(list_of_countries: Tuple[str, ...]):
 def vpns_to_redis(vpns: list):
     """add vpns to redis"""
     with RedisConnection() as r:
+        
         for vpn in vpns:
             r.zadd("vpns", {(vpn[0], vpn[1]): vpn[2]})
+    return True
+
+
+def main():
+    vpns = get_vpns(VPN_COUNTRIES)
+    vpns_to_redis(vpns)
     return True
     
