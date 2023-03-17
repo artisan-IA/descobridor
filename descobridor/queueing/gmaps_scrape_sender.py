@@ -15,18 +15,18 @@ from descobridor.queueing.constants import (
 
 def get_next_batch(language: str):
     """Get next batch of messages for the queue.
-    :param language: language of the places to be scraped.
-        eg 'en' or 'es'
-    """
-    # query mongodb docs so that:
-    # 1. it prioritizes places that haven't been scraped yet
-    # 2. selects places with_data_id non-null
-    # 3. returns {"place_id", "priority", "name", "data_id"}
-    # 4. selects only places which were scraped more than GMAPS_SCRAPE_FREQ_D days ago
-    #    or have a review_extr_ds_{language} equal to None
-    #    this will require a new field in the db, definding desired scraping frequency
-    # we also need to have separate priority for gmaps scraping and serping
+    query mongodb docs so that:
+    1. it prioritizes places that haven't been scraped yet
+    2. selects places with_data_id non-null
+    3. returns {"place_id", "priority", "name", "data_id"}
+    4. selects only places which were scraped more than GMAPS_SCRAPE_FREQ_D days ago
+    or have a review_extr_ds_{language} equal to None
+    this will require a new field in the db, definding desired scraping frequency
+    we also need to have separate priority for gmaps scraping and serping
     
+    :param language: language of the places to be scraped.
+        eg 'en' or 'es'  
+    """
     with MongoConnection("places") as db:
         time_field = f"review_extr_ds_{language.lower()}"
         cursor = db.collection.find(
@@ -35,7 +35,6 @@ def get_next_batch(language: str):
             ).sort("priority", -1).limit(GMAPS_SCRAPE_BATCH_SIZE)
         documents = list(cursor)
         [doc.pop("_id") for doc in documents]
-        print(f"Got {len(documents)} documents")
         return documents
     
     
