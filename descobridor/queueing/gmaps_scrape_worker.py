@@ -43,6 +43,10 @@ class GmapsWorker:
         print(' [*] Waiting for messages. To exit press CTRL+C')
         channel.start_consuming()
         
+    def is_connected(self):
+        # TODO check if connected to any vpn! ifconfig -> could look different on Ubuntu
+        return True
+        
     def ensure_vpn_freshness(self):
         """
         checks how old the curren vpn connection is
@@ -51,12 +55,22 @@ class GmapsWorker:
         """
         print(' [*] Ensuring vpn freshness')
         with RedisConnection() as r:
+            # if there's a current vpn assigned to this worker
             if r.connection.exists(f"{self.name}_current_vpn"):
                 current_vpn_key = r.connection.get(f"{self.name}_current_vpn")
                 current_vpn_started = r.connection.hget("vpns", current_vpn_key)
+                # check if it's still alright
                 if datetime.now().timestamp() - float(current_vpn_started) < VPN_WAIT_TIME_S:
                     print(" [v] Current vpn is still fresh")
-                    return True
+                    if self.is_connected():
+                        return True
+        
+        print(" [*] Changinging the VPN")
+        is_connected = self.connect_to_a_new_vpn()
+        if not is_connected:
+            print(" [!] No vpn available, waiting a bit")
+            time.sleep(VPN_NOTHING_WORKS_SLEEP_S)
+            raise NoVPNError("No vpn available")
         
         
             
@@ -68,6 +82,7 @@ class GmapsWorker:
     
     @staticmethod
     def _break_vpn_key(vpn_key: str):
+        print(vpn_key)
         return vpn_key.split("_")
         
     def _decode_vpn_pair(self, vpn_key: bytes, vpn_value: bytes):
@@ -79,7 +94,7 @@ class GmapsWorker:
         with RedisConnection() as r:
             vpns = r.connection.hgetall("vpns")
         return pd.DataFrame(
-            [self._decode_vpn_pair(k, v) for (k, v) in vpns.items() ],
+            [self._decode_vpn_pair(k, v) for (k, v) in vpns.items()],
             columns=['vpn', 'hours', 'last_used'])
         
     @staticmethod
@@ -105,9 +120,11 @@ class GmapsWorker:
             try:
                 subprocess.run(
                     ["openvpn", "--config", f"{os.environ['OPENVPN_CONFIGS_DIR']}/{best_vpn}",
-                        "--auth-user-pass", f"{os.environ['OPENVPN_CONFIGS_DIR']}/secrets"])
+                        "--auth-user-pass", f"{os.environ['OPENVPN_CONFIGS_DIR']}/secrets", "&"])
                 with RedisConnection() as r:
-                    r.connection.hset("vpns", best_vpn, datetime.now().timestamp())
+                    r.connection.hset("vpns", 
+                                      self._make_vpn_key(best_vpn, time_slot), 
+                                      datetime.now().timestamp())
                     r.connection.set(f"{self.name}_current_vpn", 
                                     self._make_vpn_key(best_vpn, time_slot))
             except Exception as e:
@@ -121,7 +138,6 @@ class GmapsWorker:
                 
                 return True
     
-        time.sleep(VPN_NOTHING_WORKS_SLEEP_S)
         return False
 
 if __name__ == '__main__':
@@ -135,3 +151,6 @@ if __name__ == '__main__':
         except SystemExit:
             os._exit(0)
 
+
+class NoVPNError(Exception):
+    pass
