@@ -61,13 +61,8 @@ class GmapsWorker:
         with RedisConnection() as r:
             # if there's a current vpn assigned to this worker
             if r.connection.exists(self.current_vpn_key):
-                current_vpn_key = r.connection.get(self.current_vpn_key)
-                current_vpn_started = r.connection.hget("vpns", current_vpn_key)
-                # check if it's still alright
-                if datetime.now().timestamp() - float(current_vpn_started) < VPN_WAIT_TIME_S:
-                    print(" [v] Current vpn is still fresh")
-                    if self.is_connected():
-                        return True
+                if self.is_connected():
+                    return True
         
         print(" [*] Changinging the VPN")
         is_connected = self.connect_to_a_new_vpn()
@@ -130,14 +125,13 @@ class GmapsWorker:
                                       self._make_vpn_key(best_vpn, time_slot), 
                                       datetime.now().timestamp())
                     r.connection.set(self.current_vpn_key, 
-                                    self._make_vpn_key(best_vpn, time_slot), ex=3600) # expire?
+                                    self._make_vpn_key(best_vpn, time_slot), 
+                                    ex=VPN_WAIT_TIME_S)
             except Exception as e:
                 print(f" [!] Error connecting to vpn {best_vpn}")
                 print(e)
                 continue
             else:
-                print(' [*] Ensuring vpn freshness')
-                time.sleep(1)
                 print(' [v] So fresh!')
                 
                 return True
