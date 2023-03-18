@@ -1,5 +1,6 @@
 from typing import Tuple
 import os
+from datetime import datetime
 
 from truby.db_connection import RedisConnection
 from descobridor.queueing.constants import (
@@ -15,7 +16,7 @@ def get_vpns(list_of_countries: Tuple[str, ...]):
             and f != "secrets")
     ])
     vpns = [
-        (vpns[i], round(i/len(vpns)*24,1), None)
+        (vpns[i], round(i/len(vpns)*24,1), datetime(2023,1,1,0,0,0).timestamp())
         for i in range(len(vpns))
     ]
     return vpns
@@ -24,9 +25,9 @@ def get_vpns(list_of_countries: Tuple[str, ...]):
 def vpns_to_redis(vpns: list):
     """add vpns to redis"""
     with RedisConnection() as r:
-        
+        r.connection.delete("vpns")
         for vpn in vpns:
-            r.zadd("vpns", {(vpn[0], vpn[1]): vpn[2]})
+            r.connection.hset("vpns", f"{vpn[0]}_{vpn[1]}", vpn[2])
     return True
 
 
