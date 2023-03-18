@@ -26,6 +26,10 @@ class GmapsWorker:
         self.name = name
         self.connection, self.channel, self.queue_name = gmaps_scrape_queue()
         bind_client_to_gmaps_scrape(self.channel)
+        
+    @property
+    def current_vpn_key(self):
+        return f"{self.name}_current_vpn"
 
     def callback(self, ch, method, properties, body):
         self.ensure_vpn_freshness()
@@ -56,8 +60,8 @@ class GmapsWorker:
         print(' [*] Ensuring vpn freshness')
         with RedisConnection() as r:
             # if there's a current vpn assigned to this worker
-            if r.connection.exists(f"{self.name}_current_vpn"):
-                current_vpn_key = r.connection.get(f"{self.name}_current_vpn")
+            if r.connection.exists(self.current_vpn_key):
+                current_vpn_key = r.connection.get(self.current_vpn_key)
                 current_vpn_started = r.connection.hget("vpns", current_vpn_key)
                 # check if it's still alright
                 if datetime.now().timestamp() - float(current_vpn_started) < VPN_WAIT_TIME_S:
@@ -125,8 +129,8 @@ class GmapsWorker:
                     r.connection.hset("vpns", 
                                       self._make_vpn_key(best_vpn, time_slot), 
                                       datetime.now().timestamp())
-                    r.connection.set(f"{self.name}_current_vpn", 
-                                    self._make_vpn_key(best_vpn, time_slot))
+                    r.connection.set(self.current_vpn_key, 
+                                    self._make_vpn_key(best_vpn, time_slot), ex=3600) # expire?
             except Exception as e:
                 print(f" [!] Error connecting to vpn {best_vpn}")
                 print(e)
