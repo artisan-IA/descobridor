@@ -16,11 +16,6 @@ from descobridor.queueing.constants import (
     VPN_WAIT_TIME_S, VPN_NOTHING_WORKS_SLEEP_S
 )
 
-"""
-{
-    hour: sorted set{(vpn_code, last_accessed)}
-}
-"""
 
 class GmapsWorker:
     def __init__(self, name: str):
@@ -90,7 +85,7 @@ class GmapsWorker:
         We want to connect to the vpn that haven't been used in a while
         and that is which preffered time slot is closest to the current time.
         """
-        vpns_df = self.get_vpns_from_redis()
+        vpns_df = self._get_vpns_from_redis()
         now = datetime.now().hour + datetime.now().minute / 60
         vpns_df = vpns_df[datetime.now().timestamp() - vpns_df['last_used'] > VPN_WAIT_TIME_S]
         if vpns_df.empty:
@@ -144,7 +139,7 @@ class GmapsWorker:
         vpn, hours = self._break_vpn_key(v)
         return vpn, float(hours), float(last_used)
 
-    def get_vpns_from_redis(self) -> pd.DataFrame:
+    def _get_vpns_from_redis(self) -> pd.DataFrame:
         with RedisConnection() as r:
             vpns = r.connection.hgetall("vpns")
             
