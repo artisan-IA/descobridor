@@ -47,6 +47,8 @@ class GmapsWorker:
         print(' [*] Waiting for messages. To exit press CTRL+C')
         channel.start_consuming()
         
+    # callback actions
+        
     def is_connected(self):
         # TODO check if connected to any vpn! ifconfig -> could look different on Ubuntu
         return True
@@ -65,6 +67,9 @@ class GmapsWorker:
                     return True
         
         print(" [*] Changinging the VPN")
+        # TODO how to disconnect from previous one??? Do we need to?
+        # https://askubuntu.com/questions/298419/how-to-disconnect-from-openvpn
+        # seems could be fun
         is_connected = self.connect_to_a_new_vpn()
         if not is_connected:
             print(" [!] No vpn available, waiting a bit")
