@@ -1611,7 +1611,7 @@ requests = "2.28.*"
 type = "git"
 url = "git@github.com:artisan-IA/truby.git"
 reference = "HEAD"
-resolved_reference = "18f868e9660909a866af67e1091797a210e2c31a"
+resolved_reference = "1694ad05b575976d71629193d0dd65a3c681168f"
 
 [[package]]
 name = "typing-extensions"

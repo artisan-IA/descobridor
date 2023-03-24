@@ -104,7 +104,7 @@ class GmapsWorker:
             try:
                 subprocess.run(
                     [
-                        "echo", os.environ['root_psswd'], "|", "sudo", "-S",
+                        "echo", os.environ['root_passwd'], "|", "sudo", "-S",    
                         "openvpn", "--config", f"{os.environ['OPENVPN_CONFIGS_DIR']}/{best_vpn}",
                         "--auth-user-pass", f"{os.environ['OPENVPN_CONFIGS_DIR']}/secrets", "&"])
                 self._update_redis_records_new_vpn(best_vpn, time_slot)
