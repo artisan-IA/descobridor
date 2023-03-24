@@ -102,6 +102,7 @@ class GmapsWorker:
             if best_vpn is None:
                 break
             try:
+                print(f" [v] Connecting to vpn {best_vpn}")
                 subprocess.run(
                     [
                         "echo", os.environ['root_passwd'], "|", "sudo", "-S",    
@@ -114,6 +115,7 @@ class GmapsWorker:
                 print(e)
                 continue
             else:
+                print(f" [v] Connected to vpn {best_vpn}")
                 print(' [v] So fresh!')
                 
                 return True
@@ -134,7 +136,6 @@ class GmapsWorker:
     
     @staticmethod
     def _break_vpn_key(vpn_key: str) -> Tuple[str, float]:
-        print(vpn_key)
         return vpn_key.split("_")
         
     def _decode_vpn_pair(self, vpn_key: bytes, vpn_value: bytes):
