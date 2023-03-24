@@ -13,7 +13,7 @@ from truby.db_connection import RedisConnection
 from descobridor.queueing.queues import gmaps_scrape_queue, bind_client_to_gmaps_scrape
 from descobridor.discovery.read_raw_reviews import extract_all_reviews # noqa F401
 from descobridor.queueing.constants import (
-    VPN_WAIT_TIME_S, VPN_NOTHING_WORKS_SLEEP_S
+    VPN_WAIT_TIME_S, VPN_NOTHING_WORKS_SLEEP_S, CURRENT_VPN_SUFFIX, EXPIRE_CURR_VPN_S
 )
 
 
@@ -25,7 +25,7 @@ class GmapsWorker:
         
     @property
     def current_vpn_key(self):
-        return f"{self.name}_current_vpn"
+        return f"{self.name}_{CURRENT_VPN_SUFFIX}"
 
     def callback(self, ch, method, properties, body: bytes) -> None:
         """
@@ -57,6 +57,7 @@ class GmapsWorker:
         print(' [*] Ensuring vpn freshness')
         with RedisConnection() as r:
             # if there's a current vpn assigned to this worker
+            # (unassignment happens through experation on Redis)
             if r.connection.exists(self.current_vpn_key):
                 if self.is_connected():
                     return True
@@ -102,7 +103,9 @@ class GmapsWorker:
                 break
             try:
                 subprocess.run(
-                    ["openvpn", "--config", f"{os.environ['OPENVPN_CONFIGS_DIR']}/{best_vpn}",
+                    [
+                        "echo", os.environ['root_psswd'], "|", "sudo", "-S",
+                        "openvpn", "--config", f"{os.environ['OPENVPN_CONFIGS_DIR']}/{best_vpn}",
                         "--auth-user-pass", f"{os.environ['OPENVPN_CONFIGS_DIR']}/secrets", "&"])
                 self._update_redis_records_new_vpn(best_vpn, time_slot)
                 
@@ -162,7 +165,7 @@ class GmapsWorker:
                                 datetime.now().timestamp())
             r.connection.set(self.current_vpn_key, 
                             self._make_vpn_key(best_vpn, time_slot), 
-                            ex=VPN_WAIT_TIME_S)
+                            ex=EXPIRE_CURR_VPN_S    )
             
 
 if __name__ == '__main__':
