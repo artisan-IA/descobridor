@@ -63,9 +63,7 @@ class GmapsWorker:
                     return True
         
         print(" [*] Changinging the VPN")
-        # TODO how to disconnect from previous one??? Do we need to?
-        # https://askubuntu.com/questions/298419/how-to-disconnect-from-openvpn
-        # seems could be fun
+        self.kill_current_connection()
         is_connected = self.connect_to_a_new_vpn()
         if not is_connected:
             print(" [!] No vpn available, waiting a bit")
@@ -74,8 +72,9 @@ class GmapsWorker:
         return True
         
     def is_connected(self):
-        # TODO check if connected to any vpn! ifconfig -> could look different on Ubuntu
-        return True
+        pids = self.get_ovpn_running_pids()
+        pings = self._is_pings_google()
+        return len(pids) > 0 and pings
     
     def get_best_vpn(self):
         """
@@ -95,29 +94,47 @@ class GmapsWorker:
         vpns_df['prob'] = vpns_df.hours.apply(lambda x: self._affinity(now, x, 1.5))
         best_vpn = vpns_df.sort_values('prob', ascending=False).iloc[0]
         return best_vpn.vpn, best_vpn.hours
+    
+    def get_ovpn_running_pids(self):
+        ps = subprocess.Popen(("ps", "aux"), stdout=subprocess.PIPE)
+        running_processes = subprocess.run(
+            ("grep", "nordvpn.com.tcp.ovpn"), 
+            stdin=ps.stdout, capture_output=True, text=True
+            ).stdout.split("\n")
+        pids = [[x for x in process.split(" ") if x != ""][1] 
+                for process in running_processes 
+                if len(process) > 1]
+        return pids
+    
+    def kill_current_connection(self):
+        pids = self.get_ovpn_running_pids()
+        for pid in pids:
+            passwd = self._get_echo_password_output()
+            subprocess.run(
+                ("sudo", "-S", "kill", pid),
+                stdin=passwd.stdout, capture_output=True, text=True
+            )
+        return True
         
     def connect_to_a_new_vpn(self):
-        for _ in range(5):         
+        for _ in range(1):         
             best_vpn, time_slot = self.get_best_vpn()
             if best_vpn is None:
                 break
             try:
                 print(f" [v] Connecting to vpn {best_vpn}")
-                subprocess.run(
-                    [
-                        "echo", os.environ['root_passwd'], "|", "sudo", "-S",    
-                        "openvpn", "--config", f"{os.environ['OPENVPN_CONFIGS_DIR']}/{best_vpn}",
-                        "--auth-user-pass", f"{os.environ['OPENVPN_CONFIGS_DIR']}/secrets", "&"])
-                self._update_redis_records_new_vpn(best_vpn, time_slot)
+                output = self._attempt_to_connect(best_vpn)
+                if self.is_connected():
+                    self._update_redis_records_new_vpn(best_vpn, time_slot)
+                else:
+                    raise Exception(f"VPN not connected: {output.stderr}")
                 
             except Exception as e:
                 print(f" [!] Error connecting to vpn {best_vpn}")
                 print(e)
                 continue
             else:
-                print(f" [v] Connected to vpn {best_vpn}")
-                print(' [v] So fresh!')
-                
+                print(f" [v] Connected to {best_vpn}")
                 return True
     
         return False
@@ -125,6 +142,24 @@ class GmapsWorker:
         
             
     # HELPERS
+    @staticmethod
+    def _attempt_to_connect(best_vpn):
+        output = subprocess.Popen(
+                    " ".join(["echo", os.environ['root_passwd'], "|", "sudo", "-S", 
+                    "openvpn", "--config", f"{os.environ['OPENVPN_CONFIGS_DIR']}/{best_vpn}",
+                    "--auth-user-pass", f"{os.environ['OPENVPN_CONFIGS_DIR']}/secrets", "&"]),
+                    text=True, shell=True
+                )
+        return output
+    
+    @staticmethod
+    def _is_pings_google():
+        response = os.system("ping -c 1 8.8.8.8")
+        return response == 0
+    
+    @staticmethod
+    def _get_echo_password_output():
+        return subprocess.Popen(("echo", os.environ['root_passwd']), stdout=subprocess.PIPE)
     
     @staticmethod
     def _make_vpn_key(vpn: str, time_slot: float) -> str:
