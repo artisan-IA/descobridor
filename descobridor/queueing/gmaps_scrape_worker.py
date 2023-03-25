@@ -60,6 +60,7 @@ class GmapsWorker:
             # (unassignment happens through experation on Redis)
             if r.connection.exists(self.current_vpn_key):
                 if self.is_connected():
+                    print(" [*] VPN is still fresh")
                     return True
         
         print(" [*] Changinging the VPN")
