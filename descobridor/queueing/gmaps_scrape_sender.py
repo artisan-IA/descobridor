@@ -28,25 +28,25 @@ def get_next_batch(language: str):
         eg 'en' or 'es'  
     """
     with MongoConnection("places") as db:
-        time_field = f"review_extr_ds_{language.lower()}"
+        scraped_time_lang = f"review_extr_ds_{language.lower()}"
         cursor = db.collection.find(
-            _scrape_conditions(language),
-            {"place_id", "priority", "name", "data_id", time_field}
+            _scrape_conditions(scraped_time_lang),
+            {"place_id", "priority", "name", "data_id", scraped_time_lang}
             ).sort("priority", -1).limit(GMAPS_SCRAPE_BATCH_SIZE)
         documents = list(cursor)
         [doc.pop("_id") for doc in documents]
         return documents
     
     
-def _scrape_conditions(time_field: str):
+def _scrape_conditions(scraped_time_lang: str):
     now = datetime.now()
     older_than = str((now - timedelta(days=GMAPS_SCRAPE_FREQ_D)).date())
     return {"data_id": {"$ne": None},
              "unscrapable": {"$ne": True},
              "$or": [
-                 {time_field: {"$exists": False}},
-                 {time_field: None},
-                 {time_field: {"$lt": older_than}}
+                 {scraped_time_lang: {"$exists": False}},
+                 {scraped_time_lang: None},
+                 {scraped_time_lang: {"$lt": older_than}}
              ]
              }
 
