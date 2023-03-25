@@ -115,6 +115,8 @@ class GmapsWorker:
                 ("sudo", "-S", "kill", pid),
                 stdin=passwd.stdout, capture_output=True, text=True
             )
+        with RedisConnection() as r:
+            r.connection.delete(self.current_vpn_key)
         return True
         
     def connect_to_a_new_vpn(self):
