@@ -116,11 +116,10 @@ class GmapsWorker:
         return best_vpn.vpn, best_vpn.hours
     
     def get_ovpn_running_pids(self):
-        ps = subprocess.Popen(("ps", "aux"), stdout=subprocess.PIPE)
-        running_processes = subprocess.run(
-            ("grep", "nordvpn.com.tcp.ovpn"), 
-            stdin=ps.stdout, capture_output=True, text=True
-            ).stdout.split("\n")
+        running_processes = subprocess.check_output(
+            "ps aux | grep openvpn", 
+            shell=True
+            ).decode("utf-8").split("\n")
         pids = [[x for x in process.split(" ") if x != ""][1] 
                 for process in running_processes 
                 if len(process) > 1]
