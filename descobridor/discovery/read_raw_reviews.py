@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 from truby.db_connection import MongoConnection, CosmosConnection
 from descobridor.discovery import serp_api as sa
 from descobridor.discovery import review_parser as rp
-from descobridor.discovery.constants import G_REVIEW_HEADER, TOO_MANY_PAGES, TOO_OLD_MONTHS
+from descobridor.discovery.constants import G_REVIEW_HEADER, TOO_MANY_PAGES, REVIEWS_TOO_OLD_MONTHS
 
 
 def extract_reviews_page(link: str):
@@ -118,7 +118,7 @@ def extract_all_reviews(gmaps_entry: Dict[str, Any]) -> None:
                 break
             
             reviews_age = datetime.now() - pd.to_datetime(reviews.review_date.min())
-            if reviews_age > pd.Timedelta(TOO_OLD_MONTHS, unit='M'):
+            if reviews_age > pd.Timedelta(REVIEWS_TOO_OLD_MONTHS, unit='M'):
                 break
             
             page_number += 1

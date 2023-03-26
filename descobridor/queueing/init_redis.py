@@ -10,7 +10,11 @@ from descobridor.queueing.constants import (
 
 
 def get_vpns(list_of_countries: Tuple[str, ...]):
-    """get list of openvpn config files for the given countries"""
+    """
+    get list of openvpn config files for the given countries
+    # TODO The logic of it will get too complicated if we have
+    more than one country.
+    """
     vpns = [ f for f in
         os.listdir(os.environ["OPENVPN_CONFIGS_DIR"])
         if (f.startswith(tuple(list_of_countries))
@@ -21,6 +25,8 @@ def get_vpns(list_of_countries: Tuple[str, ...]):
         (vpns[i], round(i/len(vpns)*24,1), datetime(2023,1,1,0,0,0).timestamp())
         for i in range(len(vpns))
     ]
+    if len(vpns) == 0:
+        raise ValueError("No vpns found: that doesn't seem plausible. Something is off.")
     return vpns
 
 
