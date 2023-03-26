@@ -86,9 +86,9 @@ class GmapsWorker:
         google_pings = os.system("ping -c 1 google.com")
         if google_pings != 0:
             print(" [!] VPN cannot reach google")
-        cosmos = CosmosConnection("raw_reviews")
         try:
-            cosmos.collection.find_one({}, {"name"})
+            with CosmosConnection() as cosmos:
+                cosmos.collection.find_one({}, {"name"})
         except TimeoutError:
             print(" [!] VPN cannot reach Cosmos")
             return False
