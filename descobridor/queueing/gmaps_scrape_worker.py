@@ -117,7 +117,7 @@ class GmapsWorker:
     
     def get_ovpn_running_pids(self):
         running_processes = subprocess.check_output(
-            "ps aux | grep openvpn", 
+            "ps aux | grep nordvpn.com.tcp.ovpn", 
             shell=True
             ).decode("utf-8").split("\n")
         pids = [[x for x in process.split(" ") if x != ""][1] 
