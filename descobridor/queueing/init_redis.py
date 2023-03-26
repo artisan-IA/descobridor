@@ -35,4 +35,7 @@ def main():
     vpns = get_vpns(VPN_COUNTRIES)
     vpns_to_redis(vpns)
     return True
+
+if __name__ == "__main__":
+    main()
     
