@@ -9,7 +9,7 @@ from datetime import datetime
 import subprocess
 from pathlib import Path
 
-from truby.db_connection import RedisConnection
+from truby.db_connection import RedisConnection, CosmosConnection, TimeoutError
 
 from descobridor.queueing.queues import gmaps_scrape_queue, bind_client_to_gmaps_scrape
 from descobridor.discovery.read_raw_reviews import extract_all_reviews # noqa F401
@@ -19,10 +19,12 @@ from descobridor.queueing.constants import (
 
 
 class GmapsWorker:
-    def __init__(self, name: str):
+    def __init__(self, name: str, pika_free: bool = False):
         self.name = name
-        self.connection, self.channel, self.queue_name = gmaps_scrape_queue()
-        bind_client_to_gmaps_scrape(self.channel)
+        # for debugging, maybe temporary
+        if not pika_free:
+            self.connection, self.channel, self.queue_name = gmaps_scrape_queue()
+            bind_client_to_gmaps_scrape(self.channel)
         
     @property
     def current_vpn_key(self):
@@ -81,13 +83,17 @@ class GmapsWorker:
         return len(pids) > 0 
     
     def is_connected(self):
-        pings_google = self._does_ping("google.com")
-        pings_mongo = self._does_ping("mongodb.com")
-        if not pings_google:
+        google_pings = os.system("ping -c 1 google.com")
+        if google_pings != 0:
             print(" [!] VPN cannot reach google")
-        if not pings_mongo:
-            print(" [!] VPN cannot reach mongo")
-        return pings_google and pings_mongo
+        cosmos = CosmosConnection("raw_reviews")
+        try:
+            cosmos.collection.find_one({}, {"name"})
+        except TimeoutError:
+            print(" [!] VPN cannot reach Cosmos")
+            return False
+        else:
+            return google_pings == 0
     
     def get_best_vpn(self):
         """
@@ -171,13 +177,9 @@ class GmapsWorker:
                     "--auth-user-pass", f"{path_to_configs / 'secrets'}", "&"]),
                     text=True, shell=True
                 )
+        time.sleep(10)
         return output
-    
-    @staticmethod
-    def _does_ping(domain):
-        response = os.system(f"ping -c 1 {domain}")
-        return response == 0
-    
+ 
     @staticmethod
     def _get_echo_password_output():
         return subprocess.Popen(("echo", os.environ['root_passwd']), stdout=subprocess.PIPE)
