@@ -7,6 +7,7 @@ import pandas as pd
 from scipy.stats import norm
 from datetime import datetime
 import subprocess
+from pathlib import Path
 
 from truby.db_connection import RedisConnection
 
@@ -59,12 +60,13 @@ class GmapsWorker:
             # if there's a current vpn assigned to this worker
             # (unassignment happens through experation on Redis)
             if r.connection.exists(self.current_vpn_key):
-                if self.is_connected():
-                    print(" [*] VPN is still fresh")
+                if self.is_process_started() and self.is_connected():
+                    print(" [v] VPN is still fresh")
                     return True
         
         print(" [*] Changinging the VPN")
         self.kill_current_connection()
+        
         is_connected = self.connect_to_a_new_vpn()
         if not is_connected:
             print(" [!] No vpn available, waiting a bit")
@@ -72,10 +74,20 @@ class GmapsWorker:
             raise NoVPNError("No vpn available")
         return True
         
-    def is_connected(self):
+    def is_process_started(self):
         pids = self.get_ovpn_running_pids()
-        pings = self._is_pings_google()
-        return len(pids) > 0 and pings
+        if len(pids) == 0:
+            print(" [!] No VPN running")
+        return len(pids) > 0 
+    
+    def is_connected(self):
+        pings_google = self._does_ping("google.com")
+        pings_mongo = self._does_ping("mongodb.com")
+        if not pings_google:
+            print(" [!] VPN cannot reach google")
+        if not pings_mongo:
+            print(" [!] VPN cannot reach mongo")
+        return pings_google and pings_mongo
     
     def get_best_vpn(self):
         """
@@ -108,6 +120,7 @@ class GmapsWorker:
         return pids
     
     def kill_current_connection(self):
+        print("[*] Terminating current VPN")
         pids = self.get_ovpn_running_pids()
         for pid in pids:
             passwd = self._get_echo_password_output()
@@ -127,8 +140,12 @@ class GmapsWorker:
             try:
                 print(f" [v] Connecting to vpn {best_vpn}")
                 output = self._attempt_to_connect(best_vpn)
-                if self.is_connected():
-                    self._update_redis_records_new_vpn(best_vpn, time_slot)
+                if self.is_process_started():
+                    self._mark_vpn_as_attempted(best_vpn, time_slot)
+                    if not self.is_connected():
+                        raise Exception("VPN not connected: ping failed")
+                    else:
+                        self._mark_vpn_as_in_use(best_vpn, time_slot)
                 else:
                     raise Exception(f"VPN not connected: {output.stderr}")
                 
@@ -147,17 +164,18 @@ class GmapsWorker:
     # HELPERS
     @staticmethod
     def _attempt_to_connect(best_vpn):
+        path_to_configs = Path(os.environ["OPENVPN_CONFIGS_DIR"])
         output = subprocess.Popen(
                     " ".join(["echo", os.environ['root_passwd'], "|", "sudo", "-S", 
-                    "openvpn", "--config", f"{os.environ['OPENVPN_CONFIGS_DIR']}/{best_vpn}",
-                    "--auth-user-pass", f"{os.environ['OPENVPN_CONFIGS_DIR']}/secrets", "&"]),
+                    "openvpn", "--config", f"{path_to_configs / best_vpn}",
+                    "--auth-user-pass", f"{path_to_configs / 'secrets'}", "&"]),
                     text=True, shell=True
                 )
         return output
     
     @staticmethod
-    def _is_pings_google():
-        response = os.system("ping -c 1 8.8.8.8")
+    def _does_ping(domain):
+        response = os.system(f"ping -c 1 {domain}")
         return response == 0
     
     @staticmethod
@@ -197,14 +215,17 @@ class GmapsWorker:
         """
         return norm(mu, sigma).pdf(x) + norm(mu+24, sigma).pdf(x)
     
-    def _update_redis_records_new_vpn(self, best_vpn: str, time_slot: float) -> None:
+    def _mark_vpn_as_attempted(self, best_vpn: str, time_slot: float) -> None:
         with RedisConnection() as r:
             r.connection.hset("vpns", 
                                 self._make_vpn_key(best_vpn, time_slot), 
                                 datetime.now().timestamp())
+            
+    def _mark_vpn_as_in_use(self, best_vpn: str, time_slot: float) -> None:
+         with RedisConnection() as r:
             r.connection.set(self.current_vpn_key, 
                             self._make_vpn_key(best_vpn, time_slot), 
-                            ex=EXPIRE_CURR_VPN_S    )
+                            ex=EXPIRE_CURR_VPN_S)
             
 
 if __name__ == '__main__':
