@@ -1,6 +1,7 @@
 from typing import Tuple
 import os
 from datetime import datetime
+import random
 
 from truby.db_connection import RedisConnection
 from descobridor.queueing.constants import (
@@ -10,11 +11,12 @@ from descobridor.queueing.constants import (
 
 def get_vpns(list_of_countries: Tuple[str, ...]):
     """get list of openvpn config files for the given countries"""
-    vpns = sorted([ f for f in
+    vpns = [ f for f in
         os.listdir(os.environ["OPENVPN_CONFIGS_DIR"])
         if (f.startswith(tuple(list_of_countries))
             and f != "secrets")
-    ])
+    ]
+    random.Random(10).shuffle(vpns)
     vpns = [
         (vpns[i], round(i/len(vpns)*24,1), datetime(2023,1,1,0,0,0).timestamp())
         for i in range(len(vpns))
