@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 
 
-from typing import List
+from typing import List, Dict, Any
 from bs4 import BeautifulSoup
 from more_itertools import locate
 import re
+import os
 import pandas as pd
-import pickle
 import hashlib
+from dotenv import load_dotenv
+
+from descobridor.helpers import get_localization, get_localized_parser
 from descobridor.discovery.review_age import ReviewAge
 from joblib import Parallel, delayed
 
+
+load_dotenv()
 
 
 def get_soup(row):
@@ -44,141 +49,24 @@ def get_review_text_and_marks(soup: BeautifulSoup) -> List[List[str]]:
     return list_of_lists_and_words
 
 
-#create list of dicts with review and marks
-def add_to_list_of_review_dict(list_of_sentences_and_words: List[List[str]]):   
-    """
-    """ 
-    list_of_reviews=[]   
-    index=[]
-    for sentence in list_of_sentences_and_words:
-        dict_of_reviews={}
-        # normally mark is right after colon.
-        # befre the colon is information for what (ambience, food, and so on) was given
-        if ":" in sentence:
-            ind= list(locate(sentence, lambda x: x == ':'))
-            index.append(ind)
-            length=len(ind)
-            dict_of_reviews["review"] = [" ".join(sentence[:ind[0]-1]).strip()]            
-            for i in range(length):
-                dict_of_reviews[sentence[ind[i]-1]] = sentence[ind[i]+1:ind[i]+2]
-            list_of_reviews.append(dict_of_reviews)
-        else:
-            dict_of_reviews["review"] = " ".join(sentence).strip()
-            list_of_reviews.append(dict_of_reviews)            
-    return list_of_reviews
-
-
-#get lis with users name
-def get_name_list(soup: BeautifulSoup) -> List[str]:    
-    """
-    user name is in div with class TSUbDb
-    """
-    names_text = soup.find_all("div", class_="TSUbDb")
-    list_of_texts = []        
-    for name in names_text:              
-        list_of_texts.append(" ".join(name.text.split("\n")).replace(",", "").replace("|", "").strip())   
-    return list_of_texts
-
-
-#get time of review and add to list 
-def get_time_list(soup: BeautifulSoup) -> List[str]:
-    texts = soup.find_all("div", class_="PuaHbe")
-    list_of_texts = []        
-    for text in texts:         
-        line = " ".join(text.text.split("\n")).split()
-        clean_line = (" ".join(line).replace("Nuevo", "").strip())
-        list_of_texts.append(clean_line)   
-    return list_of_texts   
-
-
-#get stars of the review
-def get_stars(soup: BeautifulSoup) -> List[int]:
-    """
-    returns stars given in a review
-    """
-    texts = soup.find_all("span", class_="Fam1ne EBe2gf")    
-    list_of_ratings = []        
-    for text in texts:      
-        str_line = str(text)        
-        pattern = re.compile(r"\d{1}")
-        line=pattern.findall(str_line)[0].strip()
-        list_of_ratings.append(int(line))   
-    return list_of_ratings                
-
-
-#add list of taken info to the main dict
-def merge_list_int_list_of_dicts(a_list_to_add, list_of_dicts, key_name) -> List[dict]:
-    """
-    we have a list of dicts 
-    and a list of values 
-    We want for every item in the list add a value to the corresponding dict
-    """
-    new_list_of_dict=[]
-    for (dict1, item) in zip(list_of_dicts, a_list_to_add, strict=True):
-        dict1[key_name] = item
-        new_list_of_dict.append(dict1)                
-    return new_list_of_dict
-
-
-#get all reviews to a final dict
-def get_all_reviews(row, language):
-    file_name = row["content"]
-    
-    soup = get_soup(file_name)  
-    texts=get_review_text_and_marks(soup)
-    reviews=add_to_list_of_review_dict(texts)     
-    names = get_name_list(soup)
-    time = get_time_list(soup)
-    stars= get_stars(soup)
-    
-    restaurant_name = [row["name"]] * len(reviews)
-    scrape_ds = [row["scrape_ds"]] * len(reviews)
-    place_ids = [row["place_id"]] * len(reviews)
-    
-    dict_name =merge_list_int_list_of_dicts(names, reviews, "reviewer_name")
-    dict_time = merge_list_int_list_of_dicts(time, dict_name, "time")
-    dict_rname = merge_list_int_list_of_dicts(restaurant_name, dict_time, "restaurant_name")
-    dict_scrape_ds = merge_list_int_list_of_dicts(scrape_ds, dict_rname, "scrape_ds")
-    dict_place_ids = merge_list_int_list_of_dicts(place_ids, dict_scrape_ds, "place_id")
-    dict_list_stars =merge_list_int_list_of_dicts(stars, dict_place_ids, "stars")
-    review_df = (
-        pd.DataFrame(add_transalated_original_to_dict(dict_list_stars, language))
-        .pipe(add_review_age, language)
-        .pipe(add_unique_review_id)
-    )
-    return review_df
-    
-
-def add_review_age(review_df, language):
-    review_df = review_df.copy()
-    review_df["review_age"] = review_df.apply(
-        lambda df: ReviewAge(df["scrape_ds"], df["time"], language), axis=1)
-    review_df['age_precision'] = review_df['review_age'].apply(lambda x: x.precision)
-    review_df['review_date'] = review_df['review_age'].apply(lambda x: x.review_date)
-    return review_df.drop(columns=["review_age"])
-
-
-def add_unique_review_id(review_df):
-    review_df = review_df.copy()
-    review_df["unique_review_id"] = (
-        review_df["place_id"] + "_" + review_df["reviewer_name"]
-    ).apply(lambda x: hashlib.new('ripemd160', x.encode()).hexdigest())
-    return review_df
-
-    
 def split_translated_original(text, language):
     """
     """
     if not text or not isinstance(text, str):
         return '', ''
     
-    if language == "ES":
+    if language == "es":
         trans_ind = "(Traducido por Google)"
         orig_ind = "(Original)"
         trans_ind_ing = "(Translated by Google)"
+        more = "Más"
+    elif language == "en":
+        trans_ind = "(Translated by Google)"
+        orig_ind = "(Original)"
+        more = "More"
     else:
-        raise NotImplementedError("Only ES is implemented")
-    text = text.rstrip('Más')
+        raise NotImplementedError("Only ES, EN is implemented")
+    text = text.rstrip(more)
     sep = text[:30]
     repetition_index = text.lower().find(sep.lower(),1)
     if repetition_index != 0:
@@ -204,37 +92,163 @@ def split_translated_original(text, language):
     else:
       return text, ''
 
+
+#create list of dicts with review and marks
+def add_to_list_of_review_dict(list_of_sentences_and_words: List[List[str]]):   
+    """
+    """ 
+    list_of_reviews=[]   
+    index=[]
+    for sentence in list_of_sentences_and_words:
+        dict_of_reviews={}
+        # normally mark is right after colon.
+        # befre the colon is information for what (ambience, food, and so on) was given
+        if ":" in sentence:
+            ind= list(locate(sentence, lambda x: x == ':'))
+            index.append(ind)
+            length=len(ind)
+            dict_of_reviews["review"] = [" ".join(sentence[:ind[0]-1]).strip()]            
+            for i in range(length):
+                dict_of_reviews[sentence[ind[i]-1]] = sentence[ind[i]+1:ind[i]+2]
+            list_of_reviews.append(dict_of_reviews)
+        else:
+            dict_of_reviews["review"] = " ".join(sentence).strip()
+            list_of_reviews.append(dict_of_reviews)            
+    return list_of_reviews
+
+
+#get lis with users name
+def get_name_list(soup: BeautifulSoup) -> pd.Series:    
+    """
+    user name is in div with class TSUbDb
+    """
+    names_text = soup.find_all("div", class_="TSUbDb")
+    list_of_texts = []        
+    for name in names_text:              
+        list_of_texts.append(" ".join(name.text.split("\n")).replace(",", "").replace("|", "").strip())   
+    return pd.Series(list_of_texts, name="reviewer_name")
+
+
+#get time of review and add to list 
+def get_times(soup: BeautifulSoup) -> pd.Series:
+    texts = soup.find_all("div", class_="PuaHbe")
+    list_of_texts = []        
+    for text in texts:         
+        line = " ".join(text.text.split("\n")).split()
+        clean_line = (" ".join(line).replace("Nuevo", "").strip())
+        list_of_texts.append(clean_line)   
+    return pd.Series(list_of_texts, name="time")
+
+
+#get stars of the review
+def get_stars(soup: BeautifulSoup, stars_class) -> List[int]:
+    """
+    returns stars given in a review
+    """
+    texts = soup.find_all("span", class_=stars_class)
+    print(texts) 
+    list_of_ratings = [None for _ in range(len(texts))]     
+    for (i, text) in enumerate(texts):      
+        str_line = str(text)
+        print(str_line)
+        pattern = re.compile(r"\d{1}")
+        line=pattern.findall(str_line)[0].strip()
+        print(line)
+        list_of_ratings[i] = float(line)
+    return pd.Series(list_of_ratings, name="stars")             
+
+
+def add_food_service_atmosphere(review: Dict[str, Any], loc: Dict[str, str]):
+    review = review.copy()
+    if loc["food"] not in review:
+        review["food"] = [None]
+    if loc["service"] not in review:
+        review["service"] = [None]
+    if loc["athmosphere"] not in review:
+        review["atmosphere"] = [None]
+    return {key.lower(): value for key, value in review.items()}
+
+
+def filter_review_keys(review: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "review": review["review"],
+        "food": review["food"][0],
+        "service": review["service"][0],
+        "atmosphere": review["atmosphere"][0],
+    }
+        
+
+def soup_to_reviews(soup, language):
+    loc = get_localization(os.environ["country"])
+    texts=get_review_text_and_marks(soup)
+    reviews = add_to_list_of_review_dict(texts)
+    reviews = [add_food_service_atmosphere(review, loc) for review in reviews]
+    reviews_df = pd.DataFrame([filter_review_keys(review) for review in reviews])
+    reviews_df["target_original"] = reviews_df["review"].apply(
+        lambda x: split_translated_original(x, language)
+    )
+    reviews_df["review_target_language"] = reviews_df["target_original"].apply(lambda x: x[0])
+    reviews_df["review_original"] = reviews_df["target_original"].apply(lambda x: x[1])
+    reviews_df["language"] = language
+    return reviews_df.drop(columns=["target_original"])
+
+
+#get all reviews to a final dict
+def parse_the_page(row, language):
+    loc_parser = get_localized_parser(language)
+    content = row["content"]
+    soup = get_soup(content)  
+    reviews = soup_to_reviews(soup, language)
+    names = get_name_list(soup)
+    time = get_times(soup)
+    stars= get_stars(soup, loc_parser["stars_class"])
     
-def add_transalated_original_to_dict(dict_list, language):
-    for a_dict in dict_list:
-        a_dict["review_target_language"], a_dict["review_original"] = \
-            split_translated_original(a_dict["review"], language)
-        a_dict["language"] = language
-    return dict_list
+    restaurant_name = pd.Series([row["name"]] * len(reviews),  name="restaurant_name")
+    scrape_ds = pd.Series([row["scrape_ds"]] * len(reviews), name="scrape_ds")
+    place_ids = pd.Series([row["place_id"]] * len(reviews), name="place_id")
+    data_ids = pd.Series([row["data_id"]] * len(reviews), name="data_id")
+    return pd.concat([
+        reviews,
+        names,
+        time, 
+        stars,
+        restaurant_name,
+        scrape_ds,
+        place_ids,
+        data_ids
+    ], axis=1)
+
+
+def get_page_reviews(row, language):
+    review_df = parse_the_page(row, language)
+    review_df = add_review_age(review_df, language)
+    
+    review_df.to_csv("review_df.csv")
+    return review_df
+    
+
+def add_review_age(review_df, language):
+    review_df = review_df.copy()
+    print(review_df.head(1))
+    review_df["review_age"] = review_df.apply(
+        lambda df: ReviewAge(df["scrape_ds"], df["time"], language), axis=1)
+    review_df['age_precision'] = review_df['review_age'].apply(lambda x: x.precision)
+    review_df['review_date'] = review_df['review_age'].apply(lambda x: x.review_date)
+    return review_df.drop(columns=["review_age"])
+
+
+def add_unique_review_id(review_df):
+    review_df = review_df.copy()
+    review_df["unique_review_id"] = (
+        review_df["place_id"] + "_" + review_df["reviewer_name"]
+    ).apply(lambda x: hashlib.new('ripemd160', x.encode()).hexdigest())
+    return review_df
+
 
 
 #scrape all reviews from a given df
 def extract_all_files_reviews(df, language):
     r = Parallel(n_jobs=4)(
-        delayed(get_all_reviews)(row, language) for (i, row) in df.iterrows()
+        delayed(get_page_reviews)(row, language) for (i, row) in df.iterrows()
         )
     return pd.concat(r).reset_index(drop=True)
-
-
-def save_to_pickle(list_of_final_dict):        
-    with open('all_raw_reviews.pkl', 'wb') as f:
-        pickle.dump(list_of_final_dict, f)
-
-
-
-if __name__ == "__main__":
-    file_name = 'raw_reviews_sample_500.csv'
-    df = pd.read_csv(file_name)
-    list_of_final_dict= extract_all_files_reviews(df, 'ES')
-    # save_to_pickle(list_of_final_dict)
-    # list_of_final_dict.to_csv("reviews_sample_partial.csv")   
-    print(list_of_final_dict)
-    print('yay')
-
-
-

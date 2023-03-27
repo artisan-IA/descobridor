@@ -131,6 +131,12 @@ def is_stop_condition(reviews, next_page_token: str, last_scraped: datetime) -> 
         or reviews_age > pd.Timedelta(REVIEWS_TOO_OLD_MONTHS, unit='M')
     )
 
+def get_last_scraped(request: Dict[str, Any]):
+    last_scraped = pd.to_datetime(request['last_scraped'])
+    if last_scraped is None:
+        last_scraped = pd.to_datetime('2000-01-01')
+    else:
+        return last_scraped.normalize()
      
 # this blasted function is too long
 def extract_all_reviews(request: Dict[str, Any]) -> None:
@@ -144,17 +150,17 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
         last_scraped: str
     """
     assert_data_id_present(request)
-    last_scraped = pd.to_datetime(request['last_scraped']).normalize()
+    last_scraped = get_last_scraped(request)
     # start the review extraction
     next_page_token = ''
     page_number = 0
     while page_number < TOO_MANY_PAGES:
         print(f'reading page {page_number}')
         page_record, next_page_token = process_page(request, page_number, next_page_token)
-        reviews = rp.get_all_reviews(page_record, request['language'])
+        reviews = rp.get_page_reviews(page_record, request['language'])
         print(f"storing page {page_number}")
-        store_page(page_record)
-        store_reviews(reviews)
+        # store_page(page_record)
+        # store_reviews(reviews)
         print(f"stored page {page_number}")
 
         if is_stop_condition(reviews, next_page_token, last_scraped):
@@ -165,5 +171,5 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
         print(f'sleeping for {wait} s')
         time.sleep(wait)
 
-    update_places_is_reviewed(request)
+    # update_places_is_reviewed(request)
     print(f' [v] finished with {request["name"]}')

@@ -1,4 +1,13 @@
-countries:
+es:
+  language: 
+   language: en
+   food: Food
+   service: Service
+   athmosphere: Athmosphere
+  domain: es
+
+review_parser:
+  en:
+    stars_class: "lTi8oc z3HNkc"
   es:
-    language: en
-    domain: es
+    stars_class_es: "Fam1ne EBe2gf"

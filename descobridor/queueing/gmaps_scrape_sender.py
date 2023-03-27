@@ -12,7 +12,7 @@ from descobridor.queueing.constants import (
     GMAPS_SCRAPE_BATCH_SIZE, GMAPS_SCRAPE_KEY, TOPIC_EXCHANGE, GMAPS_SCRAPE_FREQ_D,
     GMAPS_SCRAPER_INTERFACE
 )
-from descobridor.helpers import choose_language_domain
+from descobridor.helpers import get_localization
 
 
 
@@ -31,7 +31,7 @@ def prepare_request(doc: Dict[str, Any], language: str, domain: str) -> Dict:
     doc['language'] = language
     doc['country_domain'] = domain
     doc['last_scraped'] = doc[loc_last_scraped(language)]
-    doc.drop(loc_last_scraped(language))
+    doc.pop(loc_last_scraped(language))
     assert set(doc.keys()) == GMAPS_SCRAPER_INTERFACE
     return doc
 
@@ -71,7 +71,7 @@ def get_next_batch():
     :param language: language of the places to be scraped.
         eg 'en' or 'es'  
     """
-    loc = choose_language_domain(os.environ["country"])
+    loc = get_localization(os.environ["country"])
     with MongoConnection("places") as db:
         last_scraped = loc_last_scraped(loc['language'])
         cursor = db.collection.find(
