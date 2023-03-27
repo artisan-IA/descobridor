@@ -35,62 +35,14 @@ def _clean_text_from_spaces(all_texts: List[BeautifulSoup]) -> List[List[str]]:
    
 
 #get reviews ands mark and add to a list
-def get_review_text_and_marks(soup: BeautifulSoup) -> List[List[str]]:
-    all_texts=soup.find_all("div", class_="Jtu6Td")  # class where revies and ratings are  
-    texts = _clean_text_from_spaces(all_texts)
+def get_review_text_and_translation(soup: BeautifulSoup, full_review_class) -> List[List[str]]:
+    #all_texts=soup.find_all("span", class_=full_review_class)  # class where revies and ratings are  
+    # texts = _clean_text_from_spaces(all_texts)
+    ...
     
-    list_of_lists_and_words=[]
-    for sentences in texts:
-        for sentence in sentences:        
-            new = sentence.split() # we need words separately
-            list_of_lists_and_words.append(new)
-            break
-            
-    return list_of_lists_and_words
 
 
-def split_translated_original(text, language):
-    """
-    """
-    if not text or not isinstance(text, str):
-        return '', ''
-    
-    if language == "es":
-        trans_ind = "(Traducido por Google)"
-        orig_ind = "(Original)"
-        trans_ind_ing = "(Translated by Google)"
-        more = "Más"
-    elif language == "en":
-        trans_ind = "(Translated by Google)"
-        orig_ind = "(Original)"
-        more = "More"
-    else:
-        raise NotImplementedError("Only ES, EN is implemented")
-    text = text.rstrip(more)
-    sep = text[:30]
-    repetition_index = text.lower().find(sep.lower(),1)
-    if repetition_index != 0:
-        text = text[:repetition_index]
-    if len(re.findall(trans_ind, text)) > 0:
-        text_target = text.partition(orig_ind)[0].replace(trans_ind, '').strip()
-        text_other_lang = (
-            text.partition(orig_ind)[2]
-            .replace(orig_ind, '')
-            .partition(trans_ind)[0]
-            .strip()
-        )
-        return text_target, text_other_lang
-    if len(re.findall(trans_ind_ing, text)) > 0:
-        text_other_lang = text.partition(trans_ind_ing)[0].replace(trans_ind_ing, '').strip()
-        text_target = (
-            text.partition(trans_ind_ing)[2]
-            .replace(trans_ind_ing, '')
-            .partition(trans_ind_ing)[0]
-            .strip()
-        )
-        return text_target, text_other_lang
-    else:
-      return text, ''
+
 
 
 #create list of dicts with review and marks
@@ -180,15 +132,12 @@ def filter_review_keys(review: Dict[str, Any]) -> Dict[str, Any]:
 
 def soup_to_reviews(soup, language):
     loc = get_localization(os.environ["country"])
-    texts=get_review_text_and_marks(soup)
+    loc_parser = get_localized_parser(language)
+    texts=get_review_text_and_translation(soup, loc_parser["full_review_class"])
     reviews = add_to_list_of_review_dict(texts)
     reviews = [add_food_service_atmosphere(review, loc) for review in reviews]
     reviews_df = pd.DataFrame([filter_review_keys(review) for review in reviews])
-    reviews_df["target_original"] = reviews_df["review"].apply(
-        lambda x: split_translated_original(x, language)
-    )
-    reviews_df["review_target_language"] = reviews_df["target_original"].apply(lambda x: x[0])
-    reviews_df["review_original"] = reviews_df["target_original"].apply(lambda x: x[1])
+
     reviews_df["language"] = language
     return reviews_df.drop(columns=["target_original"])
 

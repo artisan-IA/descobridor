@@ -9,5 +9,10 @@ es:
 review_parser:
   en:
     stars_class: "lTi8oc z3HNkc"
+    full_review_class: "review-full-text"
+    translated_by_google: "(Translated by Google)"
+    original_text: "(Original)"
   es:
     stars_class_es: "Fam1ne EBe2gf"
+    translated_by_google: "(Traducido por Google)"
+    original_text: "(Original)"
