@@ -3,14 +3,12 @@
 
 from typing import List, Dict, Any
 from bs4 import BeautifulSoup
-from more_itertools import locate
 import re
-import os
 import pandas as pd
 import hashlib
 from dotenv import load_dotenv
 
-from descobridor.helpers import get_localization, get_localized_parser
+from descobridor.helpers import get_localized_parser
 from descobridor.discovery.review_age import ReviewAge
 from joblib import Parallel, delayed
 
@@ -23,50 +21,103 @@ def get_soup(row):
     return soup
 
 
-def _clean_text_from_spaces(all_texts: List[BeautifulSoup]) -> List[List[str]]:
-    texts=[]
-    for text in all_texts:
-        # single text could be a review or a mark
-        # source code has a lot of \n and similiar stuff, so we need to remove them
-        texts.append(
-            [" ".join(text.span.text.split("\n")).replace(",", "").replace("|", "").strip()]
-            )
-    return texts
-   
+def get_trans_orig_matrix(text, translated_tag, original_tag):
+    text_parts = [el.text.strip() for el in text.children if len(el.text.strip()) > 0]
+    has_tranlated = [translated_tag in part for part in text_parts]
+    is_translated_tag = [part == translated_tag for part in text_parts]
 
-#get reviews ands mark and add to a list
-def get_review_text_and_translation(soup: BeautifulSoup, full_review_class) -> List[List[str]]:
-    #all_texts=soup.find_all("span", class_=full_review_class)  # class where revies and ratings are  
-    # texts = _clean_text_from_spaces(all_texts)
-    ...
+    has_original = [original_tag in part for part in text_parts]
+    is_original_tag = [part == original_tag for part in text_parts]
+    return text_parts, has_tranlated, is_translated_tag, has_original, is_original_tag
+
+def seek_translated(text_parts, has_tranlated, is_translated_tag, translated_tag):
+    original_review = ""
+    translated_review = ""
+    for i in range(len(text_parts)):
+        if has_tranlated[i]:
+            if is_translated_tag[i]:
+                translated_review = text_parts[i + 1]
+                original_review = text_parts[i - 1]
+                break
+            else:
+                translated_review = text_parts[i].replace(translated_tag, "").strip()
+                original_review = ""
+                break
+    return translated_review, original_review
+
+
+def seek_original(text_parts, has_original, is_original_tag, original_tag):
+    original_review = ""
+    for i in range(len(text_parts)):
+        if has_original[i]:
+            if is_original_tag[i]:
+                original_review = text_parts[i + 1]
+                break
+            else:
+                original_review = text_parts[i].replace(original_tag, "").strip()
+                break
+    return original_review
+
+def seek_any(text_parts):
+    original_review = ""
+    for i in range(len(text_parts)):
+        if text_parts[i] != "":
+            original_review = text_parts[i]
+            break
+    return original_review
+
+def get_target_n_original_from_text(text, original_tag, translated_tag):
+    text_parts, has_tranlated, is_translated_tag, has_original, is_original_tag = \
+        get_trans_orig_matrix(text, translated_tag, original_tag)
+    
+    translated_review, original_review = seek_translated(
+        text_parts, 
+        has_tranlated, 
+        is_translated_tag, 
+        translated_tag
+    )
+    if translated_review != "" and original_review != "":
+        return original_review, translated_review
+    elif translated_review != "" and original_review == "":
+        original_review = seek_original(
+            text_parts, 
+            has_original, 
+            is_original_tag, 
+            original_tag
+        )
+        return original_review, translated_review
+    elif translated_review == "" and original_review == "":
+        original_review = seek_any(text_parts)
+        return original_review, original_review
+    
+def get_full_review(text, original_tag, translated_tag, full_review_class):
+    full_review = text.findChild("span", class_=full_review_class) 
+    if not full_review:
+        review_container = text.findChild("span", class_="f5axBf")
+        if review_container:
+            review_group = list(review_container.children)[1]
+            original = review_group.contents[0].strip()
+            return original, original
+        else:
+            return "", ""
+    else:
+        return get_target_n_original_from_text(full_review, original_tag, translated_tag)
     
 
-
-
-
-
-#create list of dicts with review and marks
-def add_to_list_of_review_dict(list_of_sentences_and_words: List[List[str]]):   
-    """
-    """ 
-    list_of_reviews=[]   
-    index=[]
-    for sentence in list_of_sentences_and_words:
-        dict_of_reviews={}
-        # normally mark is right after colon.
-        # befre the colon is information for what (ambience, food, and so on) was given
-        if ":" in sentence:
-            ind= list(locate(sentence, lambda x: x == ':'))
-            index.append(ind)
-            length=len(ind)
-            dict_of_reviews["review"] = [" ".join(sentence[:ind[0]-1]).strip()]            
-            for i in range(length):
-                dict_of_reviews[sentence[ind[i]-1]] = sentence[ind[i]+1:ind[i]+2]
-            list_of_reviews.append(dict_of_reviews)
-        else:
-            dict_of_reviews["review"] = " ".join(sentence).strip()
-            list_of_reviews.append(dict_of_reviews)            
-    return list_of_reviews
+#get reviews ands mark and add to a list
+def get_review_text_and_translation(
+    soup: BeautifulSoup, 
+    full_review_class: str,
+    original_tag: str,
+    translated_tag: str
+    ) -> List[List[str]]:
+    texts = soup.find_all("div", class_="Jtu6Td")
+    reviews = [
+        get_full_review(text, original_tag, translated_tag, full_review_class)
+        for text in texts
+    ]
+    print(len(reviews))
+    return pd.DataFrame(reviews, columns=["review_original", "review_target_language"])
 
 
 #get lis with users name
@@ -131,15 +182,15 @@ def filter_review_keys(review: Dict[str, Any]) -> Dict[str, Any]:
         
 
 def soup_to_reviews(soup, language):
-    loc = get_localization(os.environ["country"])
     loc_parser = get_localized_parser(language)
-    texts=get_review_text_and_translation(soup, loc_parser["full_review_class"])
-    reviews = add_to_list_of_review_dict(texts)
-    reviews = [add_food_service_atmosphere(review, loc) for review in reviews]
-    reviews_df = pd.DataFrame([filter_review_keys(review) for review in reviews])
-
+    reviews_df = get_review_text_and_translation(
+        soup, 
+        loc_parser["full_review_class"],
+        loc_parser["original_text"],
+        loc_parser["translated_by_google"]
+        )
     reviews_df["language"] = language
-    return reviews_df.drop(columns=["target_original"])
+    return reviews_df
 
 
 #get all reviews to a final dict
