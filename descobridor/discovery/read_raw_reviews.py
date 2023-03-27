@@ -97,7 +97,7 @@ def store_page(record: Dict[str, Any]):
     return record
      
      
-def process_page(request: Dict[str, Any], page_number: int, next_page_token: str) -> Tuple(Dict, str):
+def process_page(request: Dict[str, Any], page_number: int, next_page_token: str) -> Tuple[Dict, str]:
     link = format_query_page(request['data_id'], next_page_token, 
                                  request['country_domain'], request['language'])
     raw_google_output = get_review_page_from_google(link)
@@ -138,7 +138,11 @@ def is_stop_condition(reviews, next_page_token: str, last_review_available) -> b
 def extract_all_reviews(request: Dict[str, Any]) -> None:
     """
     :param request: a dictionary with the following keys:
-        place_id: str, data_id: str
+        place_id: str, 
+        data_id: str
+        country_domain: str
+        language: str,
+        name: str
     """
     assert_data_id_present(request)
     
@@ -164,4 +168,4 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
         time.sleep(wait)
 
     update_places_is_reviewed(request)
-    print('finished')
+    print(f' [v] finished with {request["name"]}')

@@ -12,7 +12,7 @@ from pathlib import Path
 from truby.db_connection import RedisConnection, CosmosConnection, TimeoutError
 
 from descobridor.queueing.queues import gmaps_scrape_queue, bind_client_to_gmaps_scrape
-from descobridor.discovery.read_raw_reviews import extract_all_reviews # noqa F401
+from descobridor.discovery.read_raw_reviews import extract_all_reviews
 from descobridor.queueing.constants import (
     VPN_WAIT_TIME_S, VPN_NOTHING_WORKS_SLEEP_S, CURRENT_VPN_SUFFIX, EXPIRE_CURR_VPN_S
 )
@@ -37,9 +37,8 @@ class GmapsWorker:
         """
         # self.ensure_vpn_freshness()
         gmaps_entry = json.loads(body)
-        extract_all_reviews(gmaps_entry)
         print(" [x] Received %r" % gmaps_entry)
-        time.sleep(10)
+        extract_all_reviews(gmaps_entry)
         print(" [x] Done")  
         
     def main(self) -> None:
@@ -49,8 +48,10 @@ class GmapsWorker:
         print(' [*] Waiting for messages. To exit press CTRL+C')
         channel.start_consuming()
         
-    # callback actions
         
+    # callback actions (vpn actions)
+    
+    
     def ensure_vpn_freshness(self) -> bool:
         """
         checks how old the curren vpn connection is
