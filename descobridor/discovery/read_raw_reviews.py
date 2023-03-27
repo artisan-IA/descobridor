@@ -58,13 +58,8 @@ def update_places_is_reviewed(request: Dict[str, Any]):
     with MongoConnection("gmaps_places_output") as conn:
         conn.collection.update_one(
             {'place_id': request['place_id']},
-            {"$set": {'reviews_extracted': True, 'reviwes_extraction_ds': str(date.today())}}
+            {"$set": {f"review_extr_ds_{request['language']}": str(date.today())}}
         )
-        
-        
-# TODO must have! # Ay no!
-def find_latest_available_review_date(place_id: str):
-    return None
 
 
 def store_reviews(reviwes):
@@ -77,6 +72,7 @@ def make_page_record(
     place_id: str,
     data_id: str,      
     name: str,
+    language: str,
     page_number: int,
     page_str: str, 
     next_page_token: str
@@ -86,6 +82,7 @@ def make_page_record(
         'data_id': data_id,
         'name': name,
         'scrape_ds': str(date.today()),
+        'scrape_language': language,
         'page_number': page_number,
         'next_page_token': next_page_token,
         'content': page_str
@@ -112,6 +109,7 @@ def process_page(request: Dict[str, Any], page_number: int, next_page_token: str
                 place_id=request['place_id'],
                 data_id=request['data_id'],
                 name=request['name'],
+                language=request['language'],
                 page_number=page_number,
                 page_str=page_str,
                 next_page_token=next_page_token
@@ -125,11 +123,11 @@ def assert_data_id_present(request: Dict[str, Any]) -> bool:
     return True
 
 
-def is_stop_condition(reviews, next_page_token: str, last_review_available) -> bool:
+def is_stop_condition(reviews, next_page_token: str, last_scraped: datetime) -> bool:
     reviews_age = datetime.now() - pd.to_datetime(reviews.review_date.min())
     return (
         (next_page_token is None) 
-        or (reviews.review_date.max() < last_review_available)
+        or (pd.to_datetime(reviews.review_date.max()) < last_scraped)
         or reviews_age > pd.Timedelta(REVIEWS_TOO_OLD_MONTHS, unit='M')
     )
 
@@ -143,23 +141,23 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
         country_domain: str
         language: str,
         name: str
+        last_scraped: str
     """
     assert_data_id_present(request)
-    
-    last_review_available = find_latest_available_review_date(request['place_id'])
+    last_scraped = pd.to_datetime(request['last_scraped']).normalize()
     # start the review extraction
     next_page_token = ''
     page_number = 0
     while page_number < TOO_MANY_PAGES:
         print(f'reading page {page_number}')
         page_record, next_page_token = process_page(request, page_number, next_page_token)
-        reviews = rp.get_all_reviews(page_record)
+        reviews = rp.get_all_reviews(page_record, request['language'])
         print(f"storing page {page_number}")
         store_page(page_record)
         store_reviews(reviews)
         print(f"stored page {page_number}")
 
-        if is_stop_condition(reviews, next_page_token, last_review_available):
+        if is_stop_condition(reviews, next_page_token, last_scraped):
             break
         
         page_number += 1

@@ -14,7 +14,8 @@ from truby.db_connection import RedisConnection, CosmosConnection, TimeoutError
 from descobridor.queueing.queues import gmaps_scrape_queue, bind_client_to_gmaps_scrape
 from descobridor.discovery.read_raw_reviews import extract_all_reviews
 from descobridor.queueing.constants import (
-    VPN_WAIT_TIME_S, VPN_NOTHING_WORKS_SLEEP_S, CURRENT_VPN_SUFFIX, EXPIRE_CURR_VPN_S
+    VPN_WAIT_TIME_S, VPN_NOTHING_WORKS_SLEEP_S, CURRENT_VPN_SUFFIX, EXPIRE_CURR_VPN_S,
+    GMAPS_SCRAPER_INTERFACE
 )
 
 
@@ -37,6 +38,7 @@ class GmapsWorker:
         """
         # self.ensure_vpn_freshness()
         gmaps_entry = json.loads(body)
+        assert set(gmaps_entry.keys()) == GMAPS_SCRAPER_INTERFACE
         print(" [x] Received %r" % gmaps_entry)
         extract_all_reviews(gmaps_entry)
         print(" [x] Done")  
