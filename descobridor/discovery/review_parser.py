@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 from typing import List, Dict, Any
 from bs4 import BeautifulSoup
 import re
@@ -138,7 +135,7 @@ def get_times(soup: BeautifulSoup) -> pd.Series:
     list_of_texts = []        
     for text in texts:         
         line = " ".join(text.text.split("\n")).split()
-        clean_line = (" ".join(line).replace("Nuevo", "").strip())
+        clean_line = (" ".join(line).strip())
         list_of_texts.append(clean_line)   
     return pd.Series(list_of_texts, name="time")
 

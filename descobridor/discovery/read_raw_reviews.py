@@ -128,13 +128,13 @@ def is_stop_condition(reviews, next_page_token: str, last_scraped: datetime) -> 
     return (
         (next_page_token is None) 
         or (pd.to_datetime(reviews.review_date.max()) < last_scraped)
-        or reviews_age > pd.Timedelta(REVIEWS_TOO_OLD_MONTHS, unit='M')
+        or reviews_age > pd.Timedelta(REVIEWS_TOO_OLD_MONTHS*30, unit='d')
     )
 
 def get_last_scraped(request: Dict[str, Any]):
     last_scraped = pd.to_datetime(request['last_scraped'])
     if last_scraped is None:
-        last_scraped = pd.to_datetime('2000-01-01')
+        return datetime(2015, 1, 1, 0, 0)
     else:
         return last_scraped.normalize()
      
@@ -159,8 +159,8 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
         page_record, next_page_token = process_page(request, page_number, next_page_token)
         reviews = rp.get_page_reviews(page_record, request['language'])
         print(f"storing page {page_number}")
-        # store_page(page_record)
-        # store_reviews(reviews)
+        store_page(page_record)
+        store_reviews(reviews)
         print(f"stored page {page_number}")
 
         if is_stop_condition(reviews, next_page_token, last_scraped):
