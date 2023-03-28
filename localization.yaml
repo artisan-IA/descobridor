@@ -9,10 +9,15 @@ es:
 review_parser:
   en:
     stars_class: "lTi8oc z3HNkc"
+    review_class: "Jtu6Td"
+    sing_lang_review_class: "f5axBf"
     full_review_class: "review-full-text"
-    translated_by_google: "(Translated by Google)"
-    original_text: "(Original)"
+    translated_tag: "(Translated by Google)"
+    original_tag: "(Original)"
   es:
     stars_class_es: "Fam1ne EBe2gf"
-    translated_by_google: "(Traducido por Google)"
-    original_text: "(Original)"
+    review_class: "Jtu6Td"
+    sing_lang_review_class: "f5axBf"
+    full_review_class: "review-full-text"
+    translated_tag: "(Traducido por Google)"
+    original_tag: "(Original)"

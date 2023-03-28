@@ -65,7 +65,8 @@ def update_places_is_reviewed(request: Dict[str, Any]):
 def store_reviews(reviwes):
     # TODO FIX but why?? seems alright
     with MongoConnection("reviews") as conn:
-        conn.collection.insert_many(reviwes)
+        records = conn.df_to_records(reviwes)
+        conn.collection.insert_many(records)
         
 
 def make_page_record(
@@ -157,11 +158,15 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
     while page_number < TOO_MANY_PAGES:
         print(f'reading page {page_number}')
         page_record, next_page_token = process_page(request, page_number, next_page_token)
+        # TODO remove
+        with open(f"page_{page_number}.html", "w") as f:
+            f.write(page_record['content'])
         reviews = rp.get_page_reviews(page_record, request['language'])
-        print(f"storing page {page_number}")
+        print(f"storing page and reviews for {page_number}")
         store_page(page_record)
-        store_reviews(reviews)
         print(f"stored page {page_number}")
+        store_reviews(reviews)
+        print(f"stored reviews for {page_number}")
 
         if is_stop_condition(reviews, next_page_token, last_scraped):
             break

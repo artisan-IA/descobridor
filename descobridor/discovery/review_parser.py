@@ -18,21 +18,22 @@ def get_soup(row):
     return soup
 
 
-def get_trans_orig_matrix(text, translated_tag, original_tag):
+def get_trans_orig_status(text, translated_tag, original_tag):
     text_parts = [el.text.strip() for el in text.children if len(el.text.strip()) > 0]
-    has_tranlated = [translated_tag in part for part in text_parts]
-    is_translated_tag = [part == translated_tag for part in text_parts]
+    tranlated_status = [
+        (translated_tag in part, part == translated_tag)  for part in text_parts]
 
-    has_original = [original_tag in part for part in text_parts]
-    is_original_tag = [part == original_tag for part in text_parts]
-    return text_parts, has_tranlated, is_translated_tag, has_original, is_original_tag
+    original_status = [
+        (original_tag in part, part == original_tag)  for part in text_parts]
+    
+    return text_parts, original_status, tranlated_status
 
-def seek_translated(text_parts, has_tranlated, is_translated_tag, translated_tag):
+def seek_translated(text_parts, translated_status, translated_tag):
     original_review = ""
     translated_review = ""
     for i in range(len(text_parts)):
-        if has_tranlated[i]:
-            if is_translated_tag[i]:
+        if translated_status[i][0]:
+            if translated_status[i][1]:
                 translated_review = text_parts[i + 1]
                 original_review = text_parts[i - 1]
                 break
@@ -43,11 +44,12 @@ def seek_translated(text_parts, has_tranlated, is_translated_tag, translated_tag
     return translated_review, original_review
 
 
-def seek_original(text_parts, has_original, is_original_tag, original_tag):
+def seek_original(text_parts, original_status, original_tag):
     original_review = ""
     for i in range(len(text_parts)):
-        if has_original[i]:
-            if is_original_tag[i]:
+        if original_status[i][0]:
+            # sometimes original is empty, though translated is not
+            if original_status[i][1] and len(original_status) > i + 1:
                 original_review = text_parts[i + 1]
                 break
             else:
@@ -64,13 +66,12 @@ def seek_any(text_parts):
     return original_review
 
 def get_target_n_original_from_text(text, original_tag, translated_tag):
-    text_parts, has_tranlated, is_translated_tag, has_original, is_original_tag = \
-        get_trans_orig_matrix(text, translated_tag, original_tag)
+    text_parts, original_status, translated_status = \
+        get_trans_orig_status(text, translated_tag, original_tag)
     
     translated_review, original_review = seek_translated(
         text_parts, 
-        has_tranlated, 
-        is_translated_tag, 
+        translated_status, 
         translated_tag
     )
     if translated_review != "" and original_review != "":
@@ -78,8 +79,7 @@ def get_target_n_original_from_text(text, original_tag, translated_tag):
     elif translated_review != "" and original_review == "":
         original_review = seek_original(
             text_parts, 
-            has_original, 
-            is_original_tag, 
+            original_status, 
             original_tag
         )
         return original_review, translated_review
@@ -87,10 +87,10 @@ def get_target_n_original_from_text(text, original_tag, translated_tag):
         original_review = seek_any(text_parts)
         return original_review, original_review
     
-def get_full_review(text, original_tag, translated_tag, full_review_class):
+def get_full_review(text, original_tag, translated_tag, full_review_class, sing_lang_review_class):
     full_review = text.findChild("span", class_=full_review_class) 
     if not full_review:
-        review_container = text.findChild("span", class_="f5axBf")
+        review_container = text.findChild("span", class_=sing_lang_review_class)
         if review_container:
             review_group = list(review_container.children)[1]
             original = review_group.contents[0].strip()
@@ -102,19 +102,23 @@ def get_full_review(text, original_tag, translated_tag, full_review_class):
     
 
 #get reviews ands mark and add to a list
-def get_review_text_and_translation(
-    soup: BeautifulSoup, 
-    full_review_class: str,
-    original_tag: str,
-    translated_tag: str
-    ) -> List[List[str]]:
-    texts = soup.find_all("div", class_="Jtu6Td")
+def soup_to_reviews(soup: BeautifulSoup, language) -> List[List[str]]:
+    loc_parser = get_localized_parser(language)
+    texts = soup.find_all("div", class_=loc_parser["review_class"])
     reviews = [
-        get_full_review(text, original_tag, translated_tag, full_review_class)
+        get_full_review(
+            text, 
+            loc_parser["original_tag"],
+            loc_parser["translated_tag"], 
+            loc_parser["full_review_class"],
+            loc_parser["sing_lang_review_class"]
+        )
         for text in texts
     ]
     print(len(reviews))
-    return pd.DataFrame(reviews, columns=["review_original", "review_target_language"])
+    reviews_df = pd.DataFrame(reviews, columns=["review_original", "review_target_language"])
+    reviews_df["language"] = language
+    return reviews_df
 
 
 #get lis with users name
@@ -176,34 +180,22 @@ def filter_review_keys(review: Dict[str, Any]) -> Dict[str, Any]:
         "service": review["service"][0],
         "atmosphere": review["atmosphere"][0],
     }
-        
-
-def soup_to_reviews(soup, language):
-    loc_parser = get_localized_parser(language)
-    reviews_df = get_review_text_and_translation(
-        soup, 
-        loc_parser["full_review_class"],
-        loc_parser["original_text"],
-        loc_parser["translated_by_google"]
-        )
-    reviews_df["language"] = language
-    return reviews_df
 
 
 #get all reviews to a final dict
-def parse_the_page(row, language):
+def parse_the_page(page_record: Dict[str, Any], language: str) -> pd.DataFrame:
     loc_parser = get_localized_parser(language)
-    content = row["content"]
+    content = page_record["content"]
     soup = get_soup(content)  
     reviews = soup_to_reviews(soup, language)
     names = get_name_list(soup)
     time = get_times(soup)
     stars= get_stars(soup, loc_parser["stars_class"])
     
-    restaurant_name = pd.Series([row["name"]] * len(reviews),  name="restaurant_name")
-    scrape_ds = pd.Series([row["scrape_ds"]] * len(reviews), name="scrape_ds")
-    place_ids = pd.Series([row["place_id"]] * len(reviews), name="place_id")
-    data_ids = pd.Series([row["data_id"]] * len(reviews), name="data_id")
+    restaurant_name = pd.Series([page_record["name"]] * len(reviews),  name="restaurant_name")
+    scrape_ds = pd.Series([page_record["scrape_ds"]] * len(reviews), name="scrape_ds")
+    place_ids = pd.Series([page_record["place_id"]] * len(reviews), name="place_id")
+    data_ids = pd.Series([page_record["data_id"]] * len(reviews), name="data_id")
     return pd.concat([
         reviews,
         names,
@@ -214,17 +206,9 @@ def parse_the_page(row, language):
         place_ids,
         data_ids
     ], axis=1)
-
-
-def get_page_reviews(row, language):
-    review_df = parse_the_page(row, language)
-    review_df = add_review_age(review_df, language)
-    
-    review_df.to_csv("review_df.csv")
-    return review_df
     
 
-def add_review_age(review_df, language):
+def add_review_age(review_df: pd.DataFrame, language: str) -> pd.DataFrame:
     review_df = review_df.copy()
     print(review_df.head(1))
     review_df["review_age"] = review_df.apply(
@@ -234,17 +218,24 @@ def add_review_age(review_df, language):
     return review_df.drop(columns=["review_age"])
 
 
-def add_unique_review_id(review_df):
+def add_unique_review_id(review_df: pd.DataFrame) -> pd.DataFrame:
     review_df = review_df.copy()
     review_df["unique_review_id"] = (
-        review_df["place_id"] + "_" + review_df["reviewer_name"]
+        review_df["place_id"] + "_" + review_df["reviewer_name"] + "_" + review_df["language"].iat[0]
     ).apply(lambda x: hashlib.new('ripemd160', x.encode()).hexdigest())
     return review_df
 
 
+def get_page_reviews(page_record: Dict[str, Any], language: str) -> pd.DataFrame:
+    review_df = parse_the_page(page_record, language)
+    review_df = add_review_age(review_df, language)
+    review_df = add_unique_review_id(review_df)
+    review_df.to_csv("review_df.csv", index=False)
+    return review_df
+
 
 #scrape all reviews from a given df
-def extract_all_files_reviews(df, language):
+def extract_all_files_reviews(df: pd.DataFrame, language: str) -> pd.DataFrame:
     r = Parallel(n_jobs=4)(
         delayed(get_page_reviews)(row, language) for (i, row) in df.iterrows()
         )
