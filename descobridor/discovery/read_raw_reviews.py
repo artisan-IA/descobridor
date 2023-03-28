@@ -55,18 +55,17 @@ def binary_page_to_str(raw_google_output: bytes):
      
 
 def update_places_is_reviewed(request: Dict[str, Any]):
-    with MongoConnection("gmaps_places_output") as conn:
+    with MongoConnection("places") as conn:
         conn.collection.update_one(
             {'place_id': request['place_id']},
             {"$set": {f"review_extr_ds_{request['language']}": str(date.today())}}
         )
 
 
-def store_reviews(reviwes):
+def store_reviews(reviews):
     # TODO FIX but why?? seems alright
-    with MongoConnection("reviews") as conn:
-        records = conn.df_to_records(reviwes)
-        conn.collection.insert_many(records)
+    mongo = MongoConnection("reviews")
+    mongo.df_to_collection_omit_duplicated(reviews)
         
 
 def make_page_record(
@@ -126,6 +125,7 @@ def assert_data_id_present(request: Dict[str, Any]) -> bool:
 
 def is_stop_condition(reviews, next_page_token: str, last_scraped: datetime) -> bool:
     reviews_age = datetime.now() - pd.to_datetime(reviews.review_date.min())
+    print(f"reviews_age: {reviews_age}")
     return (
         (next_page_token is None) 
         or (pd.to_datetime(reviews.review_date.max()) < last_scraped)
@@ -176,5 +176,5 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
         print(f'sleeping for {wait} s')
         time.sleep(wait)
 
-    # update_places_is_reviewed(request)
+    update_places_is_reviewed(request)
     print(f' [v] finished with {request["name"]}')

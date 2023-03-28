@@ -115,7 +115,6 @@ def soup_to_reviews(soup: BeautifulSoup, language) -> List[List[str]]:
         )
         for text in texts
     ]
-    print(len(reviews))
     reviews_df = pd.DataFrame(reviews, columns=["review_original", "review_target_language"])
     reviews_df["language"] = language
     return reviews_df
@@ -150,14 +149,11 @@ def get_stars(soup: BeautifulSoup, stars_class) -> List[int]:
     returns stars given in a review
     """
     texts = soup.find_all("span", class_=stars_class)
-    print(texts) 
     list_of_ratings = [None for _ in range(len(texts))]     
     for (i, text) in enumerate(texts):      
         str_line = str(text)
-        print(str_line)
         pattern = re.compile(r"\d{1}")
         line=pattern.findall(str_line)[0].strip()
-        print(line)
         list_of_ratings[i] = float(line)
     return pd.Series(list_of_ratings, name="stars")             
 
@@ -210,7 +206,6 @@ def parse_the_page(page_record: Dict[str, Any], language: str) -> pd.DataFrame:
 
 def add_review_age(review_df: pd.DataFrame, language: str) -> pd.DataFrame:
     review_df = review_df.copy()
-    print(review_df.head(1))
     review_df["review_age"] = review_df.apply(
         lambda df: ReviewAge(df["scrape_ds"], df["time"], language), axis=1)
     review_df['age_precision'] = review_df['review_age'].apply(lambda x: x.precision)
