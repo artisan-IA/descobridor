@@ -18,7 +18,7 @@ def get_credentials() -> Tuple[str, str]:
 
 def get_auth_connection():
     credentials = get_credentials()
-    parameters = pika.ConnectionParameters(os.environ["rmq_ip"], credentials=credentials)
+    parameters = pika.ConnectionParameters(os.environ["rabbitmq_host"], credentials=credentials)
     return pika.BlockingConnection(parameters)
 
 
