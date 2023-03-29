@@ -1,5 +1,6 @@
 from typing import Tuple, Optional
 import pika
+import os
 from descobridor.queueing.constants import (
     DIRECT_EXCHANGE, TOPIC_EXCHANGE,
     SERP_QUEUE_NAME, SERP_QUEUE_MAX_LENGTH, SERP_QUEUE_MAX_PRIORITY,
@@ -8,12 +9,23 @@ from descobridor.queueing.constants import (
 )
 
 
+def get_credentials() -> Tuple[str, str]:
+    """Get credentials from environment variables."""
+    user = os.environ.get('rabbitmq_user')
+    passwd = os.environ.get('rabbitmq_pass')
+    return pika.PlainCredentials(user, passwd)
+
+
+def get_auth_connection():
+    credentials = get_credentials()
+    parameters = pika.ConnectionParameters(os.environ["rabbitmq_host"], credentials=credentials)
+    return pika.BlockingConnection(parameters)
+
+
 def serp_queue() -> Tuple[pika.BlockingConnection, pika.adapters.blocking_connection.BlockingChannel, str]:
     # publisher confirms
     """Connect to the queue."""
-    connection = pika.BlockingConnection(
-        pika.ConnectionParameters(host='localhost')
-    )
+    connection = get_auth_connection()
     channel = connection.channel()
     channel.exchange_declare(exchange=DIRECT_EXCHANGE, exchange_type='direct', durable=True)
     channel.queue_declare(
@@ -37,9 +49,7 @@ def bind_client_to_serp_queue(
 
 
 def gmaps_scrape_queue():
-    connection = pika.BlockingConnection(
-        pika.ConnectionParameters(host='localhost')
-    )
+    connection = get_auth_connection()
     channel = connection.channel()
     channel.exchange_declare(exchange=TOPIC_EXCHANGE, exchange_type='topic', durable=True)
     channel.queue_declare(

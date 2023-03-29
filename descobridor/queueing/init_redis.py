@@ -2,11 +2,15 @@ from typing import Tuple
 import os
 from datetime import datetime
 import random
+from dotenv import load_dotenv
 
 from truby.db_connection import RedisConnection
 from descobridor.queueing.constants import (
     VPN_COUNTRIES
 )
+
+
+load_dotenv()
 
 
 def get_vpns(list_of_countries: Tuple[str, ...]):
