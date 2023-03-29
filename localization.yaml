@@ -1,0 +1,23 @@
+es:
+  language: 
+   language: en
+   food: Food
+   service: Service
+   athmosphere: Athmosphere
+  domain: es
+
+review_parser:
+  en:
+    stars_class: "lTi8oc z3HNkc"
+    review_class: "Jtu6Td"
+    sing_lang_review_class: "f5axBf"
+    full_review_class: "review-full-text"
+    translated_tag: "(Translated by Google)"
+    original_tag: "(Original)"
+  es:
+    stars_class_es: "Fam1ne EBe2gf"
+    review_class: "Jtu6Td"
+    sing_lang_review_class: "f5axBf"
+    full_review_class: "review-full-text"
+    translated_tag: "(Traducido por Google)"
+    original_tag: "(Original)"

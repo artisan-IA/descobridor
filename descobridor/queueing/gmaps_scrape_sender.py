@@ -1,19 +1,63 @@
 import os
 import sys
-from typing import Dict, List
+from typing import Dict, List, Any
 import pika
 import json
 from datetime import datetime, timedelta
-import argparse
+from dotenv import load_dotenv
 
 from descobridor.queueing.queues import gmaps_scrape_queue
 from truby.db_connection import MongoConnection
 from descobridor.queueing.constants import (
-    GMAPS_SCRAPE_BATCH_SIZE, GMAPS_SCRAPE_KEY, TOPIC_EXCHANGE, GMAPS_SCRAPE_FREQ_D
+    GMAPS_SCRAPE_BATCH_SIZE, GMAPS_SCRAPE_KEY, TOPIC_EXCHANGE, GMAPS_SCRAPE_FREQ_D,
+    GMAPS_SCRAPER_INTERFACE
 )
+from descobridor.helpers import get_localization
 
 
-def get_next_batch(language: str):
+
+load_dotenv()
+
+
+def loc_last_scraped(language: str) -> str:
+    return f"review_extr_ds_{language}"
+    
+    
+def prepare_request(doc: Dict[str, Any], language: str, domain: str) -> Dict:
+    """Add language (as a 2 letter code) and country domain fields 
+    to the document."""
+    doc = doc.copy()
+    doc.pop('_id')
+    doc['language'] = language
+    doc['country_domain'] = domain
+    doc['last_scraped'] = doc[loc_last_scraped(language)]
+    doc.pop(loc_last_scraped(language))
+    assert set(doc.keys()) == GMAPS_SCRAPER_INTERFACE
+    return doc
+
+
+def scrape_conditions(last_scraped: str):
+    """
+    out of the vast number of places in the db, we want to select only those
+    that have data_id, and have not been scraped 
+    in the last GMAPS_SCRAPE_FREQ_D days
+    """
+    now = datetime.now()
+    older_than = str((now - timedelta(days=GMAPS_SCRAPE_FREQ_D)).date())
+    return {"data_id": {"$ne": None},
+             "unscrapable": {"$ne": True},
+             "$or": [
+                 {last_scraped: {"$exists": False}},
+                 {last_scraped: None},
+                 {last_scraped: {"$lt": older_than}}
+             ]
+             }
+
+
+# main functions
+
+
+def get_next_batch():
     """Get next batch of messages for the queue.
     query mongodb docs so that:
     1. it prioritizes places that haven't been scraped yet
@@ -27,29 +71,18 @@ def get_next_batch(language: str):
     :param language: language of the places to be scraped.
         eg 'en' or 'es'  
     """
+    loc = get_localization(os.environ["country"])
     with MongoConnection("places") as db:
-        scraped_time_lang = f"review_extr_ds_{language.lower()}"
+        last_scraped = loc_last_scraped(loc['language'])
         cursor = db.collection.find(
-            _scrape_conditions(scraped_time_lang),
-            {"place_id", "priority", "name", "data_id", scraped_time_lang}
+            scrape_conditions(last_scraped),
+            {"place_id", "priority", "name", "data_id", last_scraped}
             ).sort("priority", -1).limit(GMAPS_SCRAPE_BATCH_SIZE)
         documents = list(cursor)
-        [doc.pop("_id") for doc in documents]
-        return documents
+        return [prepare_request(doc, loc['language'], loc['domain']) 
+                for doc in documents]
     
     
-def _scrape_conditions(scraped_time_lang: str):
-    now = datetime.now()
-    older_than = str((now - timedelta(days=GMAPS_SCRAPE_FREQ_D)).date())
-    return {"data_id": {"$ne": None},
-             "unscrapable": {"$ne": True},
-             "$or": [
-                 {scraped_time_lang: {"$exists": False}},
-                 {scraped_time_lang: None},
-                 {scraped_time_lang: {"$lt": older_than}}
-             ]
-             }
-
 def append_to_queue(channel: pika.adapters.blocking_connection.BlockingChannel, next_batch: List[Dict]):
     """Append messages to the queue."""
     for doc in next_batch:
@@ -65,20 +98,16 @@ def append_to_queue(channel: pika.adapters.blocking_connection.BlockingChannel, 
         print(f"Sent {doc['place_id']}")
 
 
-
-def main(language: str):
+def main():
     connection, channel, queue_name = gmaps_scrape_queue()
-    next_batch = get_next_batch(language)
+    next_batch = get_next_batch()
     append_to_queue(channel, next_batch)
     connection.close()
 
 
 if __name__ == '__main__':
-    ap = argparse.ArgumentParser()
-    ap.add_argument("-l", "--language", required=True, help="Desired language of the reviews")
-    args = vars(ap.parse_args())
     try:
-        main(args["language"])
+        main()
     except KeyboardInterrupt:
         print('Interrupted')
         try:
