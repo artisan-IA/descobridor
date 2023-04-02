@@ -11,7 +11,7 @@ def get_logger(logger_name: str) -> logging.Logger:
 
     logger.setLevel(int(os.environ.get("logger_level", 30)))
 
-    handler = logging.FileHandler(f'lof_{logger_name}.log')
+    handler = logging.FileHandler(f'log_{logger_name}.log')
     stdout_handler = logging.StreamHandler(sys.stdout)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     stdout_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')

@@ -7,12 +7,13 @@ import pandas as pd
 import time
 from bs4 import BeautifulSoup
 
-from truby.db_connection import MongoConnection, CosmosConnection
+from truby.db_connection import MongoConnection, CosmosConnection, RedisConnection
 from descobridor.discovery import review_parser as rp
 from descobridor.discovery.constants import (
     TOO_MANY_PAGES, 
     REVIEWS_TOO_OLD_MONTHS,
-    GMAPS_NEXT_PAGE_TOKEN
+    GMAPS_NEXT_PAGE_TOKEN,
+    PAGE_STATUS_EXPIRATION
     )
 from descobridor.the_logger import logger
 
@@ -139,6 +140,26 @@ def get_last_scraped(request: Dict[str, Any]):
         return datetime(2015, 1, 1, 0, 0)
     else:
         return last_scraped.normalize()
+    
+    
+def _successful_page_key(request: Dict[str, Any]):
+    return f"{request['place_id']}_{request['language']}_page"
+    
+def successful_page_to_redis(request: Dict[str, Any], page_number: int):
+    with RedisConnection() as redis:
+        redis.connection.set(
+            _successful_page_key(request), 
+            page_number,
+            ex=PAGE_STATUS_EXPIRATION
+            )
+        
+def get_successful_page_from_redis(request: Dict[str, Any]) -> int:
+    with RedisConnection() as redis:
+        page = redis.connection.get(_successful_page_key(request))
+    if page is None:
+        return 0
+    else:
+        return int(page)
      
 # this blasted function is too long
 def extract_all_reviews(request: Dict[str, Any]) -> None:
@@ -155,7 +176,7 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
     last_scraped = get_last_scraped(request)
     # start the review extraction
     next_page_token = ''
-    page_number = 0
+    page_number = get_successful_page_from_redis(request)
     while page_number < TOO_MANY_PAGES:
         logger.info(f'reading page {page_number}')
         page_record, next_page_token = process_page(request, page_number, next_page_token)
@@ -168,6 +189,7 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
         logger.info(f"stored page {page_number}")
         store_reviews(reviews)
         logger.info(f"stored reviews for {page_number}")
+        successful_page_to_redis(request, page_number)
 
         if is_stop_condition(reviews, next_page_token, last_scraped):
             break
