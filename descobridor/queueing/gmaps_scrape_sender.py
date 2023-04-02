@@ -76,10 +76,11 @@ def get_next_batch(in_queue: List[str]):
     if len(in_queue) >= GMAPS_SCRAPE_BATCH_SIZE:
         return []
     else:
+        logger.info("Getting next batch of messages for gmaps scrape queue...")
         with MongoConnection("places") as db:
             last_scraped = loc_last_scraped(loc['language'])
             cursor = db.collection.find(
-                scrape_conditions(last_scraped),
+                scrape_conditions(last_scraped, in_queue),
                 {"place_id", "priority", "name", "data_id", last_scraped}
                 ).sort("priority", -1).limit(GMAPS_SCRAPE_BATCH_SIZE - len(in_queue))
             documents = list(cursor)
@@ -126,6 +127,7 @@ def main():
     in_queue = extract_current_messages(channel)
     next_batch = get_next_batch(in_queue)
     if next_batch:
+        logger.info(f"Sending {len(next_batch)} messages to the queue")
         append_to_queue(channel, next_batch)
         connection.close()
     else:
