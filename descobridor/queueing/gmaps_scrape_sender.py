@@ -118,6 +118,7 @@ def extract_current_messages(channel: pika.adapters.blocking_connection.Blocking
         else:
             body = json.loads(three.decode('utf-8'))
             places.append(body['place_id'])
+    logger.debug(f"Found {len(places)} messages in the queue")
     return places
         
 

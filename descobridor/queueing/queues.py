@@ -4,7 +4,7 @@ import os
 from descobridor.queueing.constants import (
     DIRECT_EXCHANGE, TOPIC_EXCHANGE,
     SERP_QUEUE_NAME, SERP_QUEUE_MAX_LENGTH, SERP_QUEUE_MAX_PRIORITY,
-    GMAPS_SCRAPE_QUEUE_MAX_LENGTH, GMAPS_SCRAPE_QUEUE_MAX_PRIORITY,
+    GMAPS_SCRAPE_QUEUE_MAX_PRIORITY,
     GMAPS_SCRAPE_KEY
 )
 
@@ -59,8 +59,8 @@ def gmaps_scrape_queue():
     channel.queue_declare(
         queue=GMAPS_SCRAPE_KEY, 
         durable=True,
-        arguments={"x-max-priority": GMAPS_SCRAPE_QUEUE_MAX_PRIORITY, 
-                   'x-max-length': GMAPS_SCRAPE_QUEUE_MAX_LENGTH, 
+        arguments={'x-max-priority': GMAPS_SCRAPE_QUEUE_MAX_PRIORITY, 
+                   'x-max-length': 10, 
                    'x-overflow': 'reject-publish'}
         )
     channel.confirm_delivery()
