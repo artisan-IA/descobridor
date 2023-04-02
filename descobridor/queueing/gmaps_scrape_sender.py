@@ -36,7 +36,7 @@ def prepare_request(doc: Dict[str, Any], language: str, domain: str) -> Dict:
     return doc
 
 
-def scrape_conditions(last_scraped: str):
+def scrape_conditions(last_scraped: str, in_queue: List[str]):
     """
     out of the vast number of places in the db, we want to select only those
     that have data_id, and have not been scraped 
@@ -50,14 +50,15 @@ def scrape_conditions(last_scraped: str):
                  {last_scraped: {"$exists": False}},
                  {last_scraped: None},
                  {last_scraped: {"$lt": older_than}}
-             ]
+             ],
+             "place_id": {"$nin": in_queue}
              }
 
 
 # main functions
 
 
-def get_next_batch():
+def get_next_batch(in_queue: List[str]):
     """Get next batch of messages for the queue.
     query mongodb docs so that:
     1. it prioritizes places that haven't been scraped yet
@@ -101,24 +102,26 @@ def append_to_queue(channel: pika.adapters.blocking_connection.BlockingChannel, 
 def extract_current_messages(channel: pika.adapters.blocking_connection.BlockingChannel) -> List:
     """Extract current messages fro m the queue."""
     bind_client_to_gmaps_scrape(channel)
-    logger.debug("Removing old messages from the queue")
+    logger.debug("Reading current messages from the queue")
+    places = []
     for _ in range(GMAPS_SCRAPE_BATCH_SIZE):
         one, two, three = channel.basic_get(
             queue=GMAPS_SCRAPE_KEY,
-            auto_ack=True
+            auto_ack=False
         )
         if not one:
             break
         else:
             body = json.loads(three.decode('utf-8'))
-            logger.info(f"Removed {body['name']}")
+            places.append(body['place_id'])
+    return places
         
 
 
 def main():
     connection, channel, queue_name = gmaps_scrape_queue()
-    extract_current_messages(channel)
-    next_batch = get_next_batch()
+    in_queue = extract_current_messages(channel)
+    next_batch = get_next_batch(in_queue)
     append_to_queue(channel, next_batch)
     connection.close()
 
