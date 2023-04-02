@@ -194,9 +194,6 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
     while page_number < TOO_MANY_PAGES:
         logger.info(f'reading page {page_number}')
         page_record, next_page_token = process_page(request, page_number, next_page_token)
-        # TODO remove
-        with open(f"page_{page_number}.html", "w") as f:
-            f.write(page_record['content'])
         reviews = rp.get_page_reviews(page_record, request['language'])
         logger.info(f"storing page and reviews for {page_number}")
         store_page(page_record)
