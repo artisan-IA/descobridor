@@ -108,6 +108,7 @@ def extract_current_messages(channel: pika.adapters.blocking_connection.Blocking
     bind_client_to_gmaps_scrape(channel)
     logger.debug("Reading current messages from the queue")
     places = []
+    print("heello there")
     for _ in range(GMAPS_SCRAPE_BATCH_SIZE):
         one, two, three = channel.basic_get(
             queue=GMAPS_SCRAPE_KEY,
