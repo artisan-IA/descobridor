@@ -110,7 +110,7 @@ def extract_current_messages(channel: pika.adapters.blocking_connection.Blocking
         if not one:
             break
         else:
-            body = json.loads(three.decode('utf-8').body)
+            body = json.loads(three.decode('utf-8'))
             logger.info(f"Extracted {body['name']}")
         
 
