@@ -159,7 +159,21 @@ def get_successful_page_from_redis(request: Dict[str, Any]) -> int:
     if page is None:
         return 0
     else:
-        return int(page)
+        return int(page) + 1
+    
+
+def get_next_page_token_from_cosmos(request: Dict[str, Any], page_number) -> str:
+    if page_number == 0:
+        return ''
+    
+    with CosmosConnection("raw_reviews") as conn:
+        record = conn.collection.find_one(
+            {"page_number": page_number, "place_id": request['place_id']}
+        )
+    if record is None:
+        return ''
+    else:
+        return record['next_page_token']
      
 # this blasted function is too long
 def extract_all_reviews(request: Dict[str, Any]) -> None:
@@ -175,8 +189,8 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
     assert_data_id_present(request)
     last_scraped = get_last_scraped(request)
     # start the review extraction
-    next_page_token = ''
     page_number = get_successful_page_from_redis(request)
+    next_page_token = get_next_page_token_from_cosmos
     while page_number < TOO_MANY_PAGES:
         logger.info(f'reading page {page_number}')
         page_record, next_page_token = process_page(request, page_number, next_page_token)
