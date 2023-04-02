@@ -3,11 +3,12 @@ from bs4 import BeautifulSoup
 import re
 import pandas as pd
 import hashlib
+from joblib import Parallel, delayed
 from dotenv import load_dotenv
 
 from descobridor.helpers import get_localized_parser
 from descobridor.discovery.review_age import ReviewAge
-from joblib import Parallel, delayed
+from descobridor.the_logger import logger
 
 
 load_dotenv()
@@ -105,6 +106,7 @@ def get_full_review(text, original_tag, translated_tag, full_review_class, sing_
 def soup_to_reviews(soup: BeautifulSoup, language) -> List[List[str]]:
     loc_parser = get_localized_parser(language)
     texts = soup.find_all("div", class_=loc_parser["review_class"])
+    logger.debug(f"Found {len(texts)} reviews")
     reviews = [
         get_full_review(
             text, 
@@ -115,6 +117,7 @@ def soup_to_reviews(soup: BeautifulSoup, language) -> List[List[str]]:
         )
         for text in texts
     ]
+    logger.debug(f"Extracted {len(reviews)} reviews")
     reviews_df = pd.DataFrame(reviews, columns=["review_original", "review_target_language"])
     reviews_df["language"] = language
     return reviews_df
