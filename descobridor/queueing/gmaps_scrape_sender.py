@@ -95,13 +95,13 @@ def append_to_queue(channel: pika.adapters.blocking_connection.BlockingChannel, 
             properties=pika.BasicProperties(
                 delivery_mode = pika.spec.PERSISTENT_DELIVERY_MODE
         ))
-        logger.info(f"Sent{doc['name']} {doc['place_id']}")
+        logger.info(f"Sent {doc['name']} {doc['place_id']}")
         
 
 def extract_current_messages(channel: pika.adapters.blocking_connection.BlockingChannel) -> List:
     """Extract current messages fro m the queue."""
     bind_client_to_gmaps_scrape(channel)
-    logger.info("Extracting old messages from the queue")
+    logger.debug("Removing old messages from the queue")
     for _ in range(GMAPS_SCRAPE_BATCH_SIZE):
         one, two, three = channel.basic_get(
             queue=GMAPS_SCRAPE_KEY,
@@ -111,7 +111,7 @@ def extract_current_messages(channel: pika.adapters.blocking_connection.Blocking
             break
         else:
             body = json.loads(three.decode('utf-8'))
-            logger.info(f"Extracted {body['name']}")
+            logger.info(f"Removed {body['name']}")
         
 
 
