@@ -101,6 +101,7 @@ def append_to_queue(channel: pika.adapters.blocking_connection.BlockingChannel, 
 def extract_current_messages(channel: pika.adapters.blocking_connection.BlockingChannel) -> List:
     """Extract current messages fro m the queue."""
     bind_client_to_gmaps_scrape(channel)
+    print("hello there")
     for _ in range(GMAPS_SCRAPE_BATCH_SIZE):
         one, two, three = channel.basic_get(
             queue=GMAPS_SCRAPE_KEY,
