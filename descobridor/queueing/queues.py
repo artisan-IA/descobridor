@@ -1,11 +1,9 @@
-from typing import Tuple, Optional
+from typing import Tuple
 import pika
 import os
 from descobridor.queueing.constants import (
-    DIRECT_EXCHANGE,
     SERP_QUEUE_NAME, SERP_QUEUE_MAX_LENGTH, SERP_QUEUE_MAX_PRIORITY,
-    GMAPS_SCRAPE_QUEUE_MAX_PRIORITY,
-    GMAPS_SCRAPE_KEY
+    DIRECT_EXCHANGE
 )
 
 
@@ -51,29 +49,4 @@ def bind_client_to_serp_queue(
         queue=SERP_QUEUE_NAME
         )
 
-
-def gmaps_scrape_queue():
-    connection = get_auth_connection()
-    channel = connection.channel()
-    channel.queue_declare(
-        queue=GMAPS_SCRAPE_KEY, 
-        durable=True,
-        arguments={'x-max-priority': GMAPS_SCRAPE_QUEUE_MAX_PRIORITY, 
-                   'x-max-length': 10, 
-                   'x-overflow': 'reject-publish'}
-        )
-    channel.basic_qos(prefetch_count=0)
-    channel.confirm_delivery()
-    return connection, channel, GMAPS_SCRAPE_KEY
-    
-    
-def bind_client_to_gmaps_scrape(
-    channel: pika.adapters.blocking_connection.BlockingChannel, 
-    routing_key: Optional[str] = GMAPS_SCRAPE_KEY
-    ):
-    channel.queue_bind(
-        exchange='', 
-        queue=GMAPS_SCRAPE_KEY, 
-        routing_key=routing_key
-        )
     

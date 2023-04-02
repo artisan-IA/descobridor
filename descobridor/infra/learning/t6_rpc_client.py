@@ -41,7 +41,7 @@ class FibonacciRpcClient(object):
 
 fibonacci_rpc = FibonacciRpcClient()
 
-n = 10
+n = 40
 print(f" [x] Requesting fib({n})")
 response = fibonacci_rpc.call(n)
 print(" [.] Got %r" % response)

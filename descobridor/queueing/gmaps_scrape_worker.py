@@ -7,16 +7,17 @@ import pandas as pd
 from scipy.stats import norm
 from datetime import datetime
 import subprocess
+import pika
 from pathlib import Path
 from dotenv import load_dotenv
 
 from truby.db_connection import RedisConnection, CosmosConnection, TimeoutError
 
-from descobridor.queueing.queues import gmaps_scrape_queue
+from descobridor.queueing.queues import get_auth_connection
 from descobridor.discovery.read_raw_reviews import extract_all_reviews
 from descobridor.queueing.constants import (
     VPN_WAIT_TIME_S, VPN_NOTHING_WORKS_SLEEP_S, CURRENT_VPN_SUFFIX, EXPIRE_CURR_VPN_S,
-    GMAPS_SCRAPER_INTERFACE
+    GMAPS_SCRAPER_INTERFACE, GMAPS_SCRAPE_KEY
 )
 from descobridor.the_logger import logger
 
@@ -25,19 +26,18 @@ load_dotenv()
 
 
 class GmapsWorker:
-    def __init__(self, name: str, pika_free: bool = False):
+    def __init__(self, name: str):
         self.name = name
         self.logger = logger
-        # for debugging, maybe temporary
-        if not pika_free:
-            self.connection, self.channel, self.queue_name = gmaps_scrape_queue()
-            # (self.channel)
+        self.connection = get_auth_connection()
+        self.channel = self.connection.channel()
+        self.channel.queue_declare(queue=GMAPS_SCRAPE_KEY)
         
     @property
     def current_vpn_key(self):
         return f"{self.name}_{CURRENT_VPN_SUFFIX}"
 
-    def callback(self, ch, method, properties, body: bytes) -> None:
+    def callback(self, ch, method, props, body: bytes) -> None:
         """
         checks that all is good with the vpn
         then scrapes google maps
@@ -47,15 +47,19 @@ class GmapsWorker:
         assert set(gmaps_entry.keys()) == GMAPS_SCRAPER_INTERFACE
         self.logger.info(" [x] Received %r" % gmaps_entry)
         extract_all_reviews(gmaps_entry)
-        self.logger.info(" [x] Done")  
+        self.logger.info(" [x] Done")
+        ch.basic_publish(exchange='',
+                     routing_key=props.reply_to,
+                     properties=pika.BasicProperties(correlation_id = \
+                                                         props.correlation_id),
+                     body=str("OK"))
         ch.basic_ack(delivery_tag = method.delivery_tag)
         
     def main(self) -> None:
-        connection, channel, queue_name = gmaps_scrape_queue()
-        # bind_client_to_gmaps_scrape(channel)
-        channel.basic_consume(queue=queue_name, on_message_callback=self.callback, auto_ack=False)
+        self.channel.basic_qos(prefetch_count=1)
+        self.channel.basic_consume(queue=GMAPS_SCRAPE_KEY, on_message_callback=self.callback)
         self.logger.info(' [*] Waiting for messages. To exit press CTRL+C')
-        channel.start_consuming()
+        self.channel.start_consuming()
         
         
     # callback actions (vpn actions)
