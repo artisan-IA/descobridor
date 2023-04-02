@@ -45,15 +45,15 @@ class GmapsWorker:
         self.ensure_vpn_freshness()
         gmaps_entry = json.loads(body)
         assert set(gmaps_entry.keys()) == GMAPS_SCRAPER_INTERFACE
-        print(" [x] Received %r" % gmaps_entry)
+        self.logger.info(" [x] Received %r" % gmaps_entry)
         extract_all_reviews(gmaps_entry)
-        print(" [x] Done")  
+        self.logger.info(" [x] Done")  
         
     def main(self) -> None:
         connection, channel, queue_name = gmaps_scrape_queue()
         bind_client_to_gmaps_scrape(channel)
         channel.basic_consume(queue=queue_name, on_message_callback=self.callback, auto_ack=False)
-        print(' [*] Waiting for messages. To exit press CTRL+C')
+        self.logger.info(' [*] Waiting for messages. To exit press CTRL+C')
         channel.start_consuming()
         
         
@@ -66,21 +66,21 @@ class GmapsWorker:
         if it's older than a specified time, 
         it will connect to a different one available in redis
         """
-        print(' [*] Ensuring vpn freshness')
+        self.logger.info(' [*] Ensuring vpn freshness')
         with RedisConnection() as r:
             # if there's a current vpn assigned to this worker
             # (unassignment happens through experation on Redis)
             if r.connection.exists(self.current_vpn_key):
                 if self.is_process_started() and self.is_connected():
-                    print(" [v] VPN is still fresh")
+                    self.logger.info(" [v] VPN is still fresh")
                     return True
         
-        print(" [*] Changinging the VPN")
+        self.logger.info(" [*] Changinging the VPN")
         self.kill_current_connection()
         
         is_connected = self.connect_to_a_new_vpn()
         if not is_connected:
-            print(" [!] No vpn available, waiting a bit")
+            self.logger.error(" [!] No vpn available, waiting a bit")
             time.sleep(VPN_NOTHING_WORKS_SLEEP_S)
             raise NoVPNError("No vpn available")
         return True
@@ -88,19 +88,19 @@ class GmapsWorker:
     def is_process_started(self):
         pids = self.get_ovpn_running_pids()
         if len(pids) == 0:
-            print(" [!] No VPN running")
+            self.logger.warning(" [!] No VPN running")
         return len(pids) > 0 
     
     def is_connected(self):
         google_pings = os.system("ping -c 1 google.com")
         if google_pings != 0:
-            print(" [!] VPN cannot reach google")
+            self.logger.error(" [!] VPN cannot reach google")
         try:
             cosmos = CosmosConnection("raw_reviews")
             with cosmos as c:
                 c.collection.find_one({}, {"name"})
         except TimeoutError:
-            print(" [!] VPN cannot reach Cosmos")
+            self.logger.error(" [!] VPN cannot reach Cosmos")
             return False
         else:
             return google_pings == 0
@@ -135,7 +135,7 @@ class GmapsWorker:
         return pids
     
     def kill_current_connection(self):
-        print("[*] Terminating current VPN")
+        self.logger.info("[*] Terminating current VPN")
         pids = self.get_ovpn_running_pids()
         for pid in pids:
             passwd = self._get_echo_password_output()
@@ -153,7 +153,7 @@ class GmapsWorker:
             if best_vpn is None:
                 break
             try:
-                print(f" [v] Connecting to vpn {best_vpn}")
+                self.logger.info(f" [v] Connecting to vpn {best_vpn}")
                 output = self._attempt_to_connect(best_vpn)
                 if self.is_process_started():
                     self._mark_vpn_as_attempted(best_vpn, time_slot)
@@ -165,11 +165,10 @@ class GmapsWorker:
                     raise Exception(f"VPN not connected: {output.stderr}")
                 
             except Exception as e:
-                print(f" [!] Error connecting to vpn {best_vpn}")
-                print(e)
+                self.logger.error(f" [!] Error connecting to vpn {best_vpn} {e}")
                 continue
             else:
-                print(f" [v] Connected to {best_vpn}")
+                self.logger.info(f" [v] Connected to {best_vpn}")
                 return True
     
         return False
@@ -241,10 +240,10 @@ class GmapsWorker:
 
 if __name__ == '__main__':
     try:
-        gmaps_worker = GmapsWorker("macbook")
+        gmaps_worker = GmapsWorker(os.environ["worker_name"])
         gmaps_worker.main()
     except KeyboardInterrupt:
-        print('Interrupted')
+        gmaps_worker.logger.info('Interrupted')
         try:
             sys.exit(0)
         except SystemExit:
