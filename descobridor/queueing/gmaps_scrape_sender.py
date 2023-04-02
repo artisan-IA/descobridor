@@ -99,9 +99,13 @@ def append_to_queue(channel: pika.adapters.blocking_connection.BlockingChannel, 
         
 
 def extract_current_messages(channel: pika.adapters.blocking_connection.BlockingChannel) -> List:
-    """Extract current messages from the queue."""
+    """Extract current messages fro m the queue."""
     for _ in range(GMAPS_SCRAPE_BATCH_SIZE):
-        channel.basic_consume(queue=GMAPS_SCRAPE_KEY, auto_ack=True)
+        channel.basic_consume(
+            queue=GMAPS_SCRAPE_KEY, 
+            on_message_callback=lambda ch, method, properties, body: 
+                ch.basic_ack(delivery_tag=method.delivery_tag),
+            auto_ack=False)
 
 
 def main():
