@@ -2,7 +2,7 @@ from typing import Tuple, Optional
 import pika
 import os
 from descobridor.queueing.constants import (
-    DIRECT_EXCHANGE, TOPIC_EXCHANGE,
+    DIRECT_EXCHANGE,
     SERP_QUEUE_NAME, SERP_QUEUE_MAX_LENGTH, SERP_QUEUE_MAX_PRIORITY,
     GMAPS_SCRAPE_QUEUE_MAX_PRIORITY,
     GMAPS_SCRAPE_KEY
@@ -55,7 +55,6 @@ def bind_client_to_serp_queue(
 def gmaps_scrape_queue():
     connection = get_auth_connection()
     channel = connection.channel()
-    channel.exchange_declare(exchange=TOPIC_EXCHANGE, exchange_type='topic', durable=True)
     channel.queue_declare(
         queue=GMAPS_SCRAPE_KEY, 
         durable=True,
@@ -73,7 +72,7 @@ def bind_client_to_gmaps_scrape(
     routing_key: Optional[str] = GMAPS_SCRAPE_KEY
     ):
     channel.queue_bind(
-        exchange=TOPIC_EXCHANGE, 
+        exchange='', 
         queue=GMAPS_SCRAPE_KEY, 
         routing_key=routing_key
         )

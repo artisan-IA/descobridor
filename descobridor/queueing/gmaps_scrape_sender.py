@@ -6,10 +6,10 @@ import json
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
-from descobridor.queueing.queues import gmaps_scrape_queue, bind_client_to_gmaps_scrape
+from descobridor.queueing.queues import gmaps_scrape_queue
 from truby.db_connection import MongoConnection
 from descobridor.queueing.constants import (
-    GMAPS_SCRAPE_BATCH_SIZE, GMAPS_SCRAPE_KEY, TOPIC_EXCHANGE, GMAPS_SCRAPE_FREQ_D,
+    GMAPS_SCRAPE_BATCH_SIZE, GMAPS_SCRAPE_KEY, GMAPS_SCRAPE_FREQ_D,
     GMAPS_SCRAPER_INTERFACE
 )
 from descobridor.helpers import get_localization
@@ -93,7 +93,7 @@ def append_to_queue(channel: pika.adapters.blocking_connection.BlockingChannel, 
     for doc in next_batch:
         message = json.dumps(doc) # not entirely, worker expects 'gmaps_entry' key
         channel.basic_publish(
-            exchange=TOPIC_EXCHANGE,
+            exchange='',
             routing_key=GMAPS_SCRAPE_KEY,
             body=message,
             mandatory=True,
@@ -105,7 +105,7 @@ def append_to_queue(channel: pika.adapters.blocking_connection.BlockingChannel, 
 
 def extract_current_messages(channel: pika.adapters.blocking_connection.BlockingChannel) -> List:
     """Extract current messages fro m the queue."""
-    bind_client_to_gmaps_scrape(channel)
+    # bind_client_to_gmaps_scrape(channel)
     logger.debug("Reading current messages from the queue")
     places = []
     print("heello there")

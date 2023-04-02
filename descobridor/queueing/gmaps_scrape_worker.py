@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 
 from truby.db_connection import RedisConnection, CosmosConnection, TimeoutError
 
-from descobridor.queueing.queues import gmaps_scrape_queue, bind_client_to_gmaps_scrape
+from descobridor.queueing.queues import gmaps_scrape_queue
 from descobridor.discovery.read_raw_reviews import extract_all_reviews
 from descobridor.queueing.constants import (
     VPN_WAIT_TIME_S, VPN_NOTHING_WORKS_SLEEP_S, CURRENT_VPN_SUFFIX, EXPIRE_CURR_VPN_S,
@@ -31,7 +31,7 @@ class GmapsWorker:
         # for debugging, maybe temporary
         if not pika_free:
             self.connection, self.channel, self.queue_name = gmaps_scrape_queue()
-            bind_client_to_gmaps_scrape(self.channel)
+            # (self.channel)
         
     @property
     def current_vpn_key(self):
@@ -52,7 +52,7 @@ class GmapsWorker:
         
     def main(self) -> None:
         connection, channel, queue_name = gmaps_scrape_queue()
-        bind_client_to_gmaps_scrape(channel)
+        # bind_client_to_gmaps_scrape(channel)
         channel.basic_consume(queue=queue_name, on_message_callback=self.callback, auto_ack=False)
         self.logger.info(' [*] Waiting for messages. To exit press CTRL+C')
         channel.start_consuming()
