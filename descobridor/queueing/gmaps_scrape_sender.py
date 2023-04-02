@@ -95,7 +95,7 @@ def append_to_queue(channel: pika.adapters.blocking_connection.BlockingChannel, 
             properties=pika.BasicProperties(
                 delivery_mode = pika.spec.PERSISTENT_DELIVERY_MODE
         ))
-        logger.info(f"Sent {doc['place_id']}")
+        logger.info(f"Sent{doc['name']} {doc['place_id']}")
         
 
 def extract_current_messages(channel: pika.adapters.blocking_connection.BlockingChannel) -> List:
@@ -110,7 +110,8 @@ def extract_current_messages(channel: pika.adapters.blocking_connection.Blocking
         if not one:
             break
         else:
-            logger.info(f"Extracted {three}")
+            body = json.loads(three.body)
+            logger.info(f"Extracted {body['name']}")
         
 
 
