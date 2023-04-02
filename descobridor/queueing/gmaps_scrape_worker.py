@@ -243,7 +243,7 @@ if __name__ == '__main__':
         gmaps_worker = GmapsWorker(os.environ["worker_name"])
         gmaps_worker.main()
     except KeyboardInterrupt:
-        gmaps_worker.logger.info('Interrupted')
+        gmaps_worker.logger.warning('Interrupted')
         try:
             sys.exit(0)
         except SystemExit:

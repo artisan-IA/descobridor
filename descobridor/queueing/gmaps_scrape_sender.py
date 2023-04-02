@@ -13,7 +13,7 @@ from descobridor.queueing.constants import (
     GMAPS_SCRAPER_INTERFACE
 )
 from descobridor.helpers import get_localization
-
+from descobridor.the_logger import logger
 
 
 load_dotenv()
@@ -95,7 +95,7 @@ def append_to_queue(channel: pika.adapters.blocking_connection.BlockingChannel, 
             properties=pika.BasicProperties(
                 delivery_mode = pika.spec.PERSISTENT_DELIVERY_MODE
         ))
-        print(f"Sent {doc['place_id']}")
+        logger.info(f"Sent {doc['place_id']}")
 
 
 def main():
@@ -109,7 +109,7 @@ if __name__ == '__main__':
     try:
         main()
     except KeyboardInterrupt:
-        print('Interrupted')
+        logger.warning('Interrupted')
         try:
             sys.exit(0)
         except SystemExit:
