@@ -112,7 +112,7 @@ def extract_current_messages(channel: pika.adapters.blocking_connection.Blocking
     for _ in range(GMAPS_SCRAPE_BATCH_SIZE):
         one, two, three = channel.basic_get(
             queue=GMAPS_SCRAPE_KEY,
-            auto_ack=True
+            no_ack=True
         )
         print(one, two, three)
         if not one:
