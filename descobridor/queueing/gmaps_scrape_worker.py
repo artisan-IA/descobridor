@@ -27,7 +27,7 @@ load_dotenv()
 class GmapsWorker:
     def __init__(self, name: str, pika_free: bool = False):
         self.name = name
-        self.logger = logger(name)
+        self.logger = logger
         # for debugging, maybe temporary
         if not pika_free:
             self.connection, self.channel, self.queue_name = gmaps_scrape_queue()
