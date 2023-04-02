@@ -226,10 +226,12 @@ def add_unique_review_id(review_df: pd.DataFrame) -> pd.DataFrame:
 
 def get_page_reviews(page_record: Dict[str, Any], language: str) -> pd.DataFrame:
     review_df = parse_the_page(page_record, language)
-    review_df = add_review_age(review_df, language)
-    review_df = add_unique_review_id(review_df)
-    review_df.to_csv("review_df.csv", index=False)
-    return review_df
+    if review_df.empty:
+        return review_df
+    else:
+        review_df = add_review_age(review_df, language)
+        review_df = add_unique_review_id(review_df)
+        return review_df
 
 
 #scrape all reviews from a given df
