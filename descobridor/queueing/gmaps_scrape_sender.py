@@ -73,15 +73,18 @@ def get_next_batch(in_queue: List[str]):
         eg 'en' or 'es'  
     """
     loc = get_localization(os.environ["country"])
-    with MongoConnection("places") as db:
-        last_scraped = loc_last_scraped(loc['language'])
-        cursor = db.collection.find(
-            scrape_conditions(last_scraped),
-            {"place_id", "priority", "name", "data_id", last_scraped}
-            ).sort("priority", -1).limit(GMAPS_SCRAPE_BATCH_SIZE)
-        documents = list(cursor)
-        return [prepare_request(doc, loc['language'], loc['domain']) 
-                for doc in documents]
+    if len(in_queue) >= GMAPS_SCRAPE_BATCH_SIZE:
+        return []
+    else:
+        with MongoConnection("places") as db:
+            last_scraped = loc_last_scraped(loc['language'])
+            cursor = db.collection.find(
+                scrape_conditions(last_scraped),
+                {"place_id", "priority", "name", "data_id", last_scraped}
+                ).sort("priority", -1).limit(GMAPS_SCRAPE_BATCH_SIZE - len(in_queue))
+            documents = list(cursor)
+            return [prepare_request(doc, loc['language'], loc['domain']) 
+                    for doc in documents]
     
     
 def append_to_queue(channel: pika.adapters.blocking_connection.BlockingChannel, next_batch: List[Dict]):
@@ -122,8 +125,11 @@ def main():
     connection, channel, queue_name = gmaps_scrape_queue()
     in_queue = extract_current_messages(channel)
     next_batch = get_next_batch(in_queue)
-    append_to_queue(channel, next_batch)
-    connection.close()
+    if next_batch:
+        append_to_queue(channel, next_batch)
+        connection.close()
+    else:
+        logger.info("No new messages to send, queue is full")
 
 
 if __name__ == '__main__':
