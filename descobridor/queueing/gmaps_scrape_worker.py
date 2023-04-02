@@ -18,7 +18,7 @@ from descobridor.queueing.constants import (
     VPN_WAIT_TIME_S, VPN_NOTHING_WORKS_SLEEP_S, CURRENT_VPN_SUFFIX, EXPIRE_CURR_VPN_S,
     GMAPS_SCRAPER_INTERFACE
 )
-from descobridor.the_logger import get_logger
+from descobridor.the_logger import logger
 
 
 load_dotenv()
@@ -27,7 +27,7 @@ load_dotenv()
 class GmapsWorker:
     def __init__(self, name: str, pika_free: bool = False):
         self.name = name
-        self.logger = get_logger(name)
+        self.logger = logger(name)
         # for debugging, maybe temporary
         if not pika_free:
             self.connection, self.channel, self.queue_name = gmaps_scrape_queue()
