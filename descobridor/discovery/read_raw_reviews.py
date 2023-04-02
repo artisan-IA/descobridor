@@ -159,7 +159,7 @@ def get_successful_page_from_redis(request: Dict[str, Any]) -> int:
     if page is None:
         return 0
     else:
-        return int(page) + 1
+        return int(page)
     
 
 def get_next_page_token_from_cosmos(request: Dict[str, Any], page_number) -> str:
@@ -168,7 +168,7 @@ def get_next_page_token_from_cosmos(request: Dict[str, Any], page_number) -> str
     
     with CosmosConnection("raw_reviews") as conn:
         record = conn.collection.find_one(
-            {"page_number": page_number - 1, "place_id": request['place_id']}
+            {"page_number": page_number, "place_id": request['place_id']}
         )
     if record is None:
         return ''
