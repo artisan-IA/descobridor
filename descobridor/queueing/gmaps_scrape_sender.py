@@ -44,6 +44,7 @@ class GmapsClient:
         request = self.get_request()
         self.response = None
         self.corr_id = str(uuid.uuid4())
+        logger.info(f"Sending request {request} to gmaps scrape queue...")
         self.channel.basic_publish(
             exchange='',
             routing_key=GMAPS_SCRAPE_KEY,
@@ -116,6 +117,10 @@ class GmapsClient:
                 }
 
 
+if __name__ == "__main__":
+    client = GmapsClient()
+    response = client.send_request()
+    logger.info(response)
 
 
 
