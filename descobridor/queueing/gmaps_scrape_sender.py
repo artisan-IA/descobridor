@@ -6,7 +6,7 @@ import json
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
-from descobridor.queueing.queues import gmaps_scrape_queue
+from descobridor.queueing.queues import gmaps_scrape_queue, bind_client_to_gmaps_scrape
 from truby.db_connection import MongoConnection
 from descobridor.queueing.constants import (
     GMAPS_SCRAPE_BATCH_SIZE, GMAPS_SCRAPE_KEY, TOPIC_EXCHANGE, GMAPS_SCRAPE_FREQ_D,
@@ -100,12 +100,14 @@ def append_to_queue(channel: pika.adapters.blocking_connection.BlockingChannel, 
 
 def extract_current_messages(channel: pika.adapters.blocking_connection.BlockingChannel) -> List:
     """Extract current messages fro m the queue."""
+    bind_client_to_gmaps_scrape(channel)
     for _ in range(GMAPS_SCRAPE_BATCH_SIZE):
         channel.basic_consume(
             queue=GMAPS_SCRAPE_KEY, 
             on_message_callback=lambda ch, method, properties, body: 
                 ch.basic_ack(delivery_tag=method.delivery_tag),
             auto_ack=False)
+        
 
 
 def main():
