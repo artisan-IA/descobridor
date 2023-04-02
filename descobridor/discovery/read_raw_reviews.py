@@ -14,6 +14,7 @@ from descobridor.discovery.constants import (
     REVIEWS_TOO_OLD_MONTHS,
     GMAPS_NEXT_PAGE_TOKEN
     )
+from descobridor.the_logger import logger
 
 
 def get_language_related_g_header(country_domain: str, language: str):
@@ -99,7 +100,7 @@ def process_page(request: Dict[str, Any], page_number: int, next_page_token: str
                                  request['country_domain'], request['language'])
     raw_google_output = get_review_page_from_google(link)
     page_str = binary_page_to_str(raw_google_output)
-    print(f"page {page_number} read")
+    logger.info(f"page {page_number} read")
     try:
         next_page_token = get_next_page_token(page_str)
     except IndexError:
@@ -125,7 +126,7 @@ def assert_data_id_present(request: Dict[str, Any]) -> bool:
 
 def is_stop_condition(reviews, next_page_token: str, last_scraped: datetime) -> bool:
     reviews_age = datetime.now() - pd.to_datetime(reviews.review_date.min())
-    print(f"reviews_age: {reviews_age}")
+    logger.info(f"reviews_age: {reviews_age}")
     return (
         (next_page_token is None) 
         or (pd.to_datetime(reviews.review_date.max()) < last_scraped)
@@ -156,25 +157,25 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
     next_page_token = ''
     page_number = 0
     while page_number < TOO_MANY_PAGES:
-        print(f'reading page {page_number}')
+        logger.info(f'reading page {page_number}')
         page_record, next_page_token = process_page(request, page_number, next_page_token)
         # TODO remove
         with open(f"page_{page_number}.html", "w") as f:
             f.write(page_record['content'])
         reviews = rp.get_page_reviews(page_record, request['language'])
-        print(f"storing page and reviews for {page_number}")
+        logger.info(f"storing page and reviews for {page_number}")
         store_page(page_record)
-        print(f"stored page {page_number}")
+        logger.info(f"stored page {page_number}")
         store_reviews(reviews)
-        print(f"stored reviews for {page_number}")
+        logger.info(f"stored reviews for {page_number}")
 
         if is_stop_condition(reviews, next_page_token, last_scraped):
             break
         
         page_number += 1
         wait = max(2, np.random.gamma(6, 2))
-        print(f'sleeping for {wait} s')
+        logger.info(f'sleeping for {wait} s')
         time.sleep(wait)
 
     update_places_is_reviewed(request)
-    print(f' [v] finished with {request["name"]}')
+    logger.info(f' [v] finished with {request["name"]}')

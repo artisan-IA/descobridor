@@ -22,6 +22,9 @@ def get_logger(logger_name: str) -> logging.Logger:
     return logger
 
 
+logger = get_logger(os.environ["worker_name"])
+
+
 if __name__ == "__main__":
     logger = get_logger("macbook")
     logger.info("hello world")
