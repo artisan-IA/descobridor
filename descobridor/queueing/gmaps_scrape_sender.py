@@ -101,21 +101,24 @@ def append_to_queue(channel: pika.adapters.blocking_connection.BlockingChannel, 
 def extract_current_messages(channel: pika.adapters.blocking_connection.BlockingChannel) -> List:
     """Extract current messages fro m the queue."""
     bind_client_to_gmaps_scrape(channel)
-    print("hello there")
+    logger.info("Extracting old messages from the queue")
     for _ in range(GMAPS_SCRAPE_BATCH_SIZE):
         one, two, three = channel.basic_get(
             queue=GMAPS_SCRAPE_KEY,
             auto_ack=True
         )
-        print(one, two, three)
+        if not one:
+            break
+        else:
+            logger.info(f"Extracted {three}")
         
 
 
 def main():
     connection, channel, queue_name = gmaps_scrape_queue()
     extract_current_messages(channel)
-    # next_batch = get_next_batch()
-    # append_to_queue(channel, next_batch)
+    next_batch = get_next_batch()
+    append_to_queue(channel, next_batch)
     connection.close()
 
 
