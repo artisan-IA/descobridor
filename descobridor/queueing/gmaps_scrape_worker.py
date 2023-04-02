@@ -48,6 +48,7 @@ class GmapsWorker:
         self.logger.info(" [x] Received %r" % gmaps_entry)
         extract_all_reviews(gmaps_entry)
         self.logger.info(" [x] Done")  
+        ch.basic_ack(delivery_tag = method.delivery_tag)
         
     def main(self) -> None:
         connection, channel, queue_name = gmaps_scrape_queue()
