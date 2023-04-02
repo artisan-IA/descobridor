@@ -136,7 +136,7 @@ class GmapsWorker:
             ).decode("utf-8").split("\n")
         pids = [[x for x in process.split(" ") if x != ""][1] 
                 for process in running_processes 
-                if len(process) > 1]
+                if (len(process) > 1 and "sudo" in process)]
         return pids
     
     def kill_current_connection(self):
