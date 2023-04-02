@@ -42,7 +42,7 @@ class GmapsWorker:
         checks that all is good with the vpn
         then scrapes google maps
         """
-        # self.ensure_vpn_freshness()
+        self.ensure_vpn_freshness()
         gmaps_entry = json.loads(body)
         assert set(gmaps_entry.keys()) == GMAPS_SCRAPER_INTERFACE
         print(" [x] Received %r" % gmaps_entry)
