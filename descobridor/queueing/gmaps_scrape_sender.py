@@ -40,6 +40,7 @@ class GmapsClient:
         if self.corr_id == props.correlation_id:
             self.response = body
 
+    ### SENDING ###
     def send_request(self):
         request = self.get_request()
         self.response = None
@@ -74,12 +75,12 @@ class GmapsClient:
         logger.info("Getting next batch of messages for gmaps scrape queue...")
         with MongoConnection("places") as db:
             last_scraped = self.loc_last_scraped(loc['language'])
-            doc = db.collection.find_one(
+            cursor = db.collection.find(
                 self.scrape_conditions(last_scraped),
                 {"place_id", "priority", "name", "data_id", last_scraped}
-                ).sort("priority", -1)
-
-            return self.prepare_request(doc, loc['language'], loc['domain']) 
+                ).sort("priority", -1).limit(1)
+            docs = list(cursor)
+        return self.prepare_request(docs[0], loc['language'], loc['domain']) 
 
     @staticmethod
     def loc_last_scraped(language: str) -> str:
