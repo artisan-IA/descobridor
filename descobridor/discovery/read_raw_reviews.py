@@ -203,14 +203,16 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
         logger.info(f'reading {request["name"]} page {page_number}')
         page_record, next_page_token = process_page(request, page_number, next_page_token)
         reviews = rp.get_page_reviews(page_record, request['language'])
-        if (reviews.empty):
+        if not reviews.empty:
+            logger.info(f"storing page and reviews for {page_number}")
+            store_page(page_record)
+            logger.info(f"stored page {page_number}")
+            store_reviews(reviews)
+            logger.info(f"stored reviews for {page_number}")
+            successful_page_to_redis(request, page_number)
+        else:
             logger.warning(f"no reviews found for {request['name']}")
-        logger.info(f"storing page and reviews for {page_number}")
-        store_page(page_record)
-        logger.info(f"stored page {page_number}")
-        store_reviews(reviews)
-        logger.info(f"stored reviews for {page_number}")
-        successful_page_to_redis(request, page_number)
+            break
 
         if is_stop_condition(reviews, next_page_token, last_scraped):
             break
