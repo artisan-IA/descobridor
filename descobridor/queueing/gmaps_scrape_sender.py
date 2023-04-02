@@ -100,6 +100,7 @@ def append_to_queue(channel: pika.adapters.blocking_connection.BlockingChannel, 
 
 def main():
     connection, channel, queue_name = gmaps_scrape_queue()
+    channel.queue_purge(queue=GMAPS_SCRAPE_KEY)
     next_batch = get_next_batch()
     append_to_queue(channel, next_batch)
     connection.close()
