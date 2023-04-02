@@ -63,6 +63,7 @@ def gmaps_scrape_queue():
                    'x-max-length': 10, 
                    'x-overflow': 'reject-publish'}
         )
+    channel.basic_qos(prefetch_count=0)
     channel.confirm_delivery()
     return connection, channel, GMAPS_SCRAPE_KEY
     
