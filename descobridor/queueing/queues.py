@@ -21,7 +21,7 @@ def get_auth_connection():
     parameters = pika.ConnectionParameters(
         os.environ["rabbitmq_host"], 
         credentials=credentials,
-        heartbeat=60*60*2
+        heartbeat=0
         )
     return pika.BlockingConnection(parameters)
 
