@@ -2,7 +2,6 @@ import os
 import uuid
 from typing import Dict, Any
 import pika
-import sys
 import json
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
@@ -120,18 +119,10 @@ class GmapsClient:
 
 
 if __name__ == "__main__":
-    client = GmapsClient()
     while True:
-        try:
-            response = client.send_request()
-            logger.info(response)
-        except KeyboardInterrupt:
-            logger.warning('Interrupted')
-            break
-        try:
-            sys.exit(0)
-        except SystemExit:
-            os._exit(0)
+        client = GmapsClient()
+        response = client.send_request()
+        logger.info(response)
         
 
 
