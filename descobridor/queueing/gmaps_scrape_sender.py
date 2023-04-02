@@ -113,6 +113,7 @@ def extract_current_messages(channel: pika.adapters.blocking_connection.Blocking
             queue=GMAPS_SCRAPE_KEY,
             auto_ack=False
         )
+        print(one, two, three)
         if not one:
             break
         else:
