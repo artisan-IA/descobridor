@@ -8,6 +8,7 @@ from scipy.stats import norm
 from datetime import datetime
 import subprocess
 from pathlib import Path
+from dotenv import load_dotenv
 
 from truby.db_connection import RedisConnection, CosmosConnection, TimeoutError
 
@@ -17,11 +18,16 @@ from descobridor.queueing.constants import (
     VPN_WAIT_TIME_S, VPN_NOTHING_WORKS_SLEEP_S, CURRENT_VPN_SUFFIX, EXPIRE_CURR_VPN_S,
     GMAPS_SCRAPER_INTERFACE
 )
+from descobridor.the_logger import get_logger
+
+
+load_dotenv()
 
 
 class GmapsWorker:
     def __init__(self, name: str, pika_free: bool = False):
         self.name = name
+        self.logger = get_logger(name)
         # for debugging, maybe temporary
         if not pika_free:
             self.connection, self.channel, self.queue_name = gmaps_scrape_queue()
