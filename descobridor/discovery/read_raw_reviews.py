@@ -52,11 +52,11 @@ def format_query_page(
     return f"{head}{tail}"
 
 
-def binary_page_to_str(raw_google_output: bytes):
+def binary_page_to_str(raw_google_output: bytes) -> str:
     return raw_google_output.decode('utf-8')
      
 
-def update_places_is_reviewed(request: Dict[str, Any]):
+def update_places_is_reviewed(request: Dict[str, Any]) -> None:
     with MongoConnection("places") as conn:
         conn.collection.update_one(
             {'place_id': request['place_id']},
@@ -65,7 +65,9 @@ def update_places_is_reviewed(request: Dict[str, Any]):
 
 
 def store_reviews(reviews):
-    # TODO FIX but why?? seems alright
+    """Store reviews in mongo, omitting duplicated reviews
+    dumplications come from 2 people haveing the same name.
+    cases are reasonably rare, so we don't bother."""
     mongo = MongoConnection("reviews")
     mongo.df_to_collection_omit_duplicated(reviews)
         
@@ -78,7 +80,7 @@ def make_page_record(
     page_number: int,
     page_str: str, 
     next_page_token: str
-    ):
+    ) -> Dict[str, Any]:
     return {
         'place_id': place_id,
         'data_id': data_id,
@@ -90,13 +92,18 @@ def make_page_record(
         'content': page_str
     }
     
-def store_page(record: Dict[str, Any]):
+    
+def store_page(record: Dict[str, Any]) -> None:
     with CosmosConnection("raw_reviews") as conn:
         conn.collection.insert_one(record)
     return record
      
      
 def process_page(request: Dict[str, Any], page_number: int, next_page_token: str) -> Tuple[Dict, str]:
+    """
+    having a request, a page number and a next_page_token,
+    we get a page from google, and extract reviews from it.
+    """
     link = format_query_page(request['data_id'], next_page_token, 
                                  request['country_domain'], request['language'])
     raw_google_output = get_review_page_from_google(link)
@@ -134,7 +141,8 @@ def is_stop_condition(reviews, next_page_token: str, last_scraped: datetime) -> 
         or reviews_age > pd.Timedelta(REVIEWS_TOO_OLD_MONTHS*30, unit='d')
     )
 
-def get_last_scraped(request: Dict[str, Any]):
+
+def get_last_scraped(request: Dict[str, Any]) -> datetime:
     last_scraped = pd.to_datetime(request['last_scraped'])
     if last_scraped is None:
         return datetime(2015, 1, 1, 0, 0)
@@ -142,10 +150,15 @@ def get_last_scraped(request: Dict[str, Any]):
         return last_scraped.normalize()
     
     
-def _successful_page_key(request: Dict[str, Any]):
+def _successful_page_key(request: Dict[str, Any]) -> str:
     return f"{request['place_id']}_{request['language']}_page"
     
 def successful_page_to_redis(request: Dict[str, Any], page_number: int):
+    """
+    stores the numbero of the page that was successfully scraped.
+    PAGE_STATUS_EXPIRATION is the time in seconds that the key will be stored in redis.
+    It has to be quite a bit, so that in case of failure we could return to this place.
+    """
     with RedisConnection() as redis:
         redis.connection.set(
             _successful_page_key(request), 
@@ -177,12 +190,20 @@ def get_next_page_token_from_cosmos(request: Dict[str, Any], page_number) -> str
     
 
 def get_page_num_and_page_token(request: Dict[str, Any]) -> Tuple[int, str]:
+    """
+    sometimes we have to restart the extraction from a certain page.
+    sometimes we start from the beginning.
+    This functions determines the page number and the next_page_token
+    from where we start.
+    """
     page_number = get_successful_page_from_redis(request)
     next_page_token = get_next_page_token_from_cosmos(request, page_number)
     if page_number == 0:
         return 0, ''
     else:
+        # + 1 because we want to start from the next page after successful page
         return page_number + 1, next_page_token
+     
      
 # this blasted function is too long
 def extract_all_reviews(request: Dict[str, Any]) -> None:
@@ -215,6 +236,7 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
             break
 
         if is_stop_condition(reviews, next_page_token, last_scraped):
+            logger.info(f"stop condition met for {request['name']}")
             break
         
         page_number += 1
