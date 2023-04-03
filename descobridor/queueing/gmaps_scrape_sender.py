@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 from descobridor.queueing.queues import get_auth_connection
-from truby.db_connection import MongoConnection
+from truby.db_connection import MongoConnection, RedisConnection
 from descobridor.queueing.constants import (
     GMAPS_SCRAPE_KEY, GMAPS_SCRAPE_FREQ_D,
     GMAPS_SCRAPER_INTERFACE
@@ -107,6 +107,12 @@ class GmapsClient:
         that have data_id, and have not been scraped 
         in the last GMAPS_SCRAPE_FREQ_D days
         """
+        with RedisConnection() as r:
+            header = "working_on_"
+            keys = r.connection.scan_iter(match=f"{header}*")
+        places_working_on = [k.decode().replace(header, "") for k in keys]
+        logger.info(f"Places working on: {places_working_on}")
+        
         now = datetime.now()
         older_than = str((now - timedelta(days=GMAPS_SCRAPE_FREQ_D)).date())
         return {"data_id": {"$ne": None},
@@ -115,7 +121,8 @@ class GmapsClient:
                     {last_scraped: {"$exists": False}},
                     {last_scraped: None},
                     {last_scraped: {"$lt": older_than}}
-                ]
+                ],
+                "place_id": {"$nin": places_working_on}
                 }
 
 

@@ -17,7 +17,7 @@ from descobridor.queueing.queues import get_auth_connection
 from descobridor.discovery.read_raw_reviews import extract_all_reviews
 from descobridor.queueing.constants import (
     VPN_WAIT_TIME_S, VPN_NOTHING_WORKS_SLEEP_S, CURRENT_VPN_SUFFIX, EXPIRE_CURR_VPN_S,
-    GMAPS_SCRAPER_INTERFACE, GMAPS_SCRAPE_KEY
+    GMAPS_SCRAPER_INTERFACE, GMAPS_SCRAPE_KEY, PLACE_ID_EXPIRATION_S
 )
 from descobridor.the_logger import logger
 
@@ -46,12 +46,13 @@ class GmapsWorker:
         gmaps_entry = json.loads(body)
         assert set(gmaps_entry.keys()) == GMAPS_SCRAPER_INTERFACE
         self.logger.info(" [x] Received %r" % gmaps_entry)
+        self.mark_place_id_as_in_progress(gmaps_entry['place_id'])
         extract_all_reviews(gmaps_entry)
         self.logger.info(" [x] Done")
         ch.basic_publish(exchange='',
                      routing_key=props.reply_to,
-                     properties=pika.BasicProperties(correlation_id = \
-                                                         props.correlation_id),
+                     properties=pika.BasicProperties(
+                         correlation_id=props.correlation_id),
                      body=str("OK"))
         ch.basic_ack(delivery_tag = method.delivery_tag)
         
@@ -178,7 +179,14 @@ class GmapsWorker:
     
         return False
         
-        
+    
+    # callback actions (redis actions)
+    def mark_place_id_as_in_progress(self, place_id):
+        with RedisConnection() as r:
+            self.logger.info(f" [*] Marking place_id {place_id} as in progress")
+            r.connection.set(
+                f"working_on_{place_id}", "in_progress", ex=PLACE_ID_EXPIRATION_S
+            )
             
     # HELPERS
     @staticmethod
