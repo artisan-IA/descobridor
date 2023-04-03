@@ -44,6 +44,8 @@ class GmapsClient:
     def send_request(self):
         request = self.get_request()
         self.response = None
+        # below we establish that the fact of sending is unique
+        # if we want to make a review unique, we should add the review_id
         self.corr_id = str(uuid.uuid4())
         logger.info(f"Sending request {request} to gmaps scrape queue...")
         self.channel.basic_publish(
@@ -84,8 +86,7 @@ class GmapsClient:
 
     @staticmethod
     def loc_last_scraped(language: str) -> str:
-        return f"review_extr_ds_{language}"
-        
+        return f"review_extr_ds_{language}"        
         
     def prepare_request(self, doc: Dict[str, Any], language: str, domain: str) -> Dict:
         """Add language (as a 2 letter code) and country domain fields 
