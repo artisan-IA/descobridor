@@ -19,7 +19,6 @@ EXPIRE_CURR_VPN_S = 3600 # how long current VPN is valid
 VPN_NOTHING_WORKS_SLEEP_S = 3600 * 24 # if no VPN is available, suspend all operations for this time
 CURRENT_VPN_SUFFIX = 'current_vpn'
 PLACE_ID_EXPIRATION_S = 3600
-RAW_PAGE_EXPIRATION_S = 3600 * 24 * 14
 
 GMAPS_SCRAPER_INTERFACE = {
     "place_id", "data_id", "name", "language", "country_domain", "priority", "last_scraped"

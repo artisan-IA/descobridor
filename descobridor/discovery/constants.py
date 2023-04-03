@@ -5,6 +5,7 @@ REVIEWS_TOO_OLD_MONTHS = 48
 TOO_MANY_PAGES = 200
 
 PAGE_STATUS_EXPIRATION = 60 * 60 * 24 * 7  # 7 days
+RAW_PAGE_EXPIRATION_S = 3600 * 24 * 14
 
 # scraping tags
 GMAPS_NEXT_PAGE_TOKEN = 'data-next-page-token="(\w+\=+)' # noqa S105
