@@ -17,7 +17,7 @@ from descobridor.queueing.queues import get_auth_connection
 from descobridor.discovery.read_raw_reviews import extract_all_reviews
 from descobridor.queueing.constants import (
     VPN_WAIT_TIME_S, VPN_NOTHING_WORKS_SLEEP_S, CURRENT_VPN_SUFFIX, EXPIRE_CURR_VPN_S,
-    GMAPS_SCRAPER_INTERFACE, GMAPS_SCRAPE_KEY
+    GMAPS_SCRAPER_INTERFACE, GMAPS_SCRAPE_KEY, PLACE_ID_EXPIRATION_S
 )
 from descobridor.the_logger import logger
 
@@ -178,7 +178,13 @@ class GmapsWorker:
     
         return False
         
-        
+    
+    # callback actions (redis actions)
+    def mark_place_id_as_in_progress(self, place_id):
+        with RedisConnection() as r:
+            r.connection.set(
+                f"working_on_{place_id}", "in_progress", ex=PLACE_ID_EXPIRATION_S
+            )
             
     # HELPERS
     @staticmethod
