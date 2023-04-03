@@ -182,6 +182,7 @@ class GmapsWorker:
     # callback actions (redis actions)
     def mark_place_id_as_in_progress(self, place_id):
         with RedisConnection() as r:
+            self.logger.info(f" [*] Marking place_id {place_id} as in progress")
             r.connection.set(
                 f"working_on_{place_id}", "in_progress", ex=PLACE_ID_EXPIRATION_S
             )

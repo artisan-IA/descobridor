@@ -111,6 +111,7 @@ class GmapsClient:
             header = "working_on_"
             keys = r.connection.scan_iter(match=f"{header}*")
         places_working_on = [k.decode().replace(header, "") for k in keys]
+        logger.info(f"Places working on: {places_working_on}")
         
         now = datetime.now()
         older_than = str((now - timedelta(days=GMAPS_SCRAPE_FREQ_D)).date())
