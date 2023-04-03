@@ -13,7 +13,8 @@ from descobridor.discovery.constants import (
     TOO_MANY_PAGES, 
     REVIEWS_TOO_OLD_MONTHS,
     GMAPS_NEXT_PAGE_TOKEN,
-    PAGE_STATUS_EXPIRATION
+    PAGE_STATUS_EXPIRATION,
+    RAW_PAGE_EXPIRATION_S
     )
 from descobridor.the_logger import logger
 
@@ -94,6 +95,7 @@ def make_page_record(
     
     
 def store_page(record: Dict[str, Any]) -> None:
+    record['ttl'] = RAW_PAGE_EXPIRATION_S
     with CosmosConnection("raw_reviews") as conn:
         conn.collection.insert_one(record)
     return record
