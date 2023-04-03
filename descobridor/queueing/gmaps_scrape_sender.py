@@ -107,7 +107,7 @@ class GmapsClient:
         that have data_id, and have not been scraped 
         in the last GMAPS_SCRAPE_FREQ_D days
         """
-        with RedisConnection as r:
+        with RedisConnection() as r:
             header = "working_on_"
             keys = r.connection.scan_iter(match=f"{header}*")
         places_working_on = [k.decode().replace(header, "") for k in keys]
