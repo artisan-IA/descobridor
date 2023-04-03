@@ -1,11 +1,9 @@
-from typing import Tuple, Optional
+from typing import Tuple
 import pika
 import os
 from descobridor.queueing.constants import (
-    DIRECT_EXCHANGE, TOPIC_EXCHANGE,
     SERP_QUEUE_NAME, SERP_QUEUE_MAX_LENGTH, SERP_QUEUE_MAX_PRIORITY,
-    GMAPS_SCRAPE_QUEUE_MAX_LENGTH, GMAPS_SCRAPE_QUEUE_MAX_PRIORITY,
-    GMAPS_SCRAPE_KEY
+    DIRECT_EXCHANGE
 )
 
 
@@ -18,7 +16,11 @@ def get_credentials() -> Tuple[str, str]:
 
 def get_auth_connection():
     credentials = get_credentials()
-    parameters = pika.ConnectionParameters(os.environ["rabbitmq_host"], credentials=credentials)
+    parameters = pika.ConnectionParameters(
+        os.environ["rabbitmq_host"], 
+        credentials=credentials,
+        heartbeat=0
+        )
     return pika.BlockingConnection(parameters)
 
 
@@ -47,29 +49,4 @@ def bind_client_to_serp_queue(
         queue=SERP_QUEUE_NAME
         )
 
-
-def gmaps_scrape_queue():
-    connection = get_auth_connection()
-    channel = connection.channel()
-    channel.exchange_declare(exchange=TOPIC_EXCHANGE, exchange_type='topic', durable=True)
-    channel.queue_declare(
-        queue=GMAPS_SCRAPE_KEY, 
-        durable=True,
-        arguments={"x-max-priority": GMAPS_SCRAPE_QUEUE_MAX_PRIORITY, 
-                   'x-max-length': GMAPS_SCRAPE_QUEUE_MAX_LENGTH, 
-                   'x-overflow': 'reject-publish'}
-        )
-    channel.confirm_delivery()
-    return connection, channel, GMAPS_SCRAPE_KEY
-    
-    
-def bind_client_to_gmaps_scrape(
-    channel: pika.adapters.blocking_connection.BlockingChannel, 
-    routing_key: Optional[str] = GMAPS_SCRAPE_KEY
-    ):
-    channel.queue_bind(
-        exchange=TOPIC_EXCHANGE, 
-        queue=GMAPS_SCRAPE_KEY, 
-        routing_key=routing_key
-        )
     

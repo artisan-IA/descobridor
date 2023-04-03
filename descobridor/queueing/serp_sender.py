@@ -6,8 +6,11 @@ from typing import Dict, List
 import pika
 import json
 from pathlib import Path
+from dotenv import load_dotenv
 
-scrptdir = Path("~/artesania/descobridor").expanduser()
+load_dotenv()
+
+scrptdir = Path(os.environ["repo_path"]).expanduser()
 os.chdir(scrptdir)
 
 from descobridor.queueing.constants import SERP_QUEUE_NAME, DIRECT_EXCHANGE, SERP_BATCH_SIZE # noqa E402

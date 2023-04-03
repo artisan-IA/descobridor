@@ -41,8 +41,8 @@ def change_serp_job_time(cronjobs: List[str], new_time: str) -> None:
     for (i, line) in enumerate(cronjobs):
         if "serp_sender.py" in line:
             print(line)
-            partitions = line.partition(" /")
-            new_line = f"{new_time} /{partitions[2]}"
+            partitions = line.partition("(cd ")
+            new_line = f"{new_time} (cd {partitions[2]}"
             cronjobs[i] = new_line
             
 def postpone_job() -> None:
