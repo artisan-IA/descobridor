@@ -46,6 +46,7 @@ class GmapsWorker:
         gmaps_entry = json.loads(body)
         assert set(gmaps_entry.keys()) == GMAPS_SCRAPER_INTERFACE
         self.logger.info(" [x] Received %r" % gmaps_entry)
+        self.mark_place_id_as_in_progress(gmaps_entry['place_id'])
         extract_all_reviews(gmaps_entry)
         self.logger.info(" [x] Done")
         ch.basic_publish(exchange='',
