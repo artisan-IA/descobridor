@@ -105,7 +105,7 @@ def _assert_if_extracted(page_str, page_number) -> None:
     if len(page_str) > 100:
         logger.info(f"page {page_number} extracted from google")
     else:
-        logger.fatal(f"page {page_number} not extracted from google")
+        logger.fatal(f"page {page_number} not extracted from google: {page_str}")
         raise ValueError(f"page {page_number} is empty")
      
 def process_page(request: Dict[str, Any], page_number: int, next_page_token: str) -> Tuple[Dict, str]:
