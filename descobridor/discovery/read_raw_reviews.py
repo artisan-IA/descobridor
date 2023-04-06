@@ -99,7 +99,13 @@ def store_page(record: Dict[str, Any]) -> None:
     with CosmosConnection("raw_reviews") as conn:
         conn.collection.insert_one(record)
     return record
-     
+
+
+def _assert_if_extracted(page_str, page_number) -> None:
+    if len(page_str) > 100:
+        logger.info(f"page {page_number} extracted from google")
+    else:
+        raise ValueError(f"page {page_number} is empty")
      
 def process_page(request: Dict[str, Any], page_number: int, next_page_token: str) -> Tuple[Dict, str]:
     """
@@ -110,7 +116,7 @@ def process_page(request: Dict[str, Any], page_number: int, next_page_token: str
                                  request['country_domain'], request['language'])
     raw_google_output = get_review_page_from_google(link)
     page_str = binary_page_to_str(raw_google_output)
-    logger.info(f"page {page_number} read")
+    _assert_if_extracted(page_str, page_number)
     try:
         next_page_token = get_next_page_token(page_str)
     except IndexError:
