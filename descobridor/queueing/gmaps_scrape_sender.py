@@ -117,15 +117,17 @@ class GmapsClient:
         
         now = datetime.now()
         older_than = str((now - timedelta(days=GMAPS_SCRAPE_FREQ_D)).date())
-        return {"data_id": {"$ne": None},
+        conditions = {"data_id": {"$ne": None},
                 "unscrapable": {"$ne": True},
                 "$or": [
                     {last_scraped: {"$exists": False}},
                     {last_scraped: None},
                     {last_scraped: {"$lt": older_than}}
                 ],
-                "place_id": {"$nin": places_working_on}
                 }
+        if places_working_on:
+            conditions["place_id"] = {"$nin": places_working_on}
+        return conditions
 
 
 if __name__ == "__main__":
