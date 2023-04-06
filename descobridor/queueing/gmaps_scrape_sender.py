@@ -21,20 +21,21 @@ load_dotenv()
 
 
 class GmapsClient:
-    def __init__(self) -> None:
-        self.connection = get_auth_connection()
-        self.channel = self.connection.channel()
+    def __init__(self, debug=False) -> None:
+        if not debug:
+            self.connection = get_auth_connection()
+            self.channel = self.connection.channel()
 
-        result = self.channel.queue_declare(queue='', exclusive=True)
-        self.callback_queue = result.method.queue
+            result = self.channel.queue_declare(queue='', exclusive=True)
+            self.callback_queue = result.method.queue
 
-        self.channel.basic_consume(
-            queue=self.callback_queue,
-            on_message_callback=self.on_response,
-            auto_ack=True)
+            self.channel.basic_consume(
+                queue=self.callback_queue,
+                on_message_callback=self.on_response,
+                auto_ack=True)
 
-        self.response = None
-        self.corr_id = None
+            self.response = None
+            self.corr_id = None
         
     def on_response(self, ch, method, props, body):
         if self.corr_id == props.correlation_id:
@@ -76,14 +77,12 @@ class GmapsClient:
         loc = get_localization(os.environ["country"])
         logger.info("Getting next batch of messages for gmaps scrape queue...")
         with MongoConnection("places") as db:
-            last_scraped = self.loc_last_scraped(loc['language'])
+            last_scraped_field = self.loc_last_scraped(loc['language'])
             cursor = db.collection.find(
-                self.scrape_conditions(last_scraped),
-                {"place_id", "priority", "name", "data_id", last_scraped}
+                self.scrape_conditions(last_scraped_field),
+                {"place_id", "priority", "name", "data_id", last_scraped_field}
                 ).sort("priority", -1).limit(1)
             docs = list(cursor)
-            logger.debug(f"{self.scrape_conditions(last_scraped)}")
-            logger.debug(f"{docs=}")
         return self.prepare_request(docs[0], loc['language'], loc['domain']) 
 
     @staticmethod
