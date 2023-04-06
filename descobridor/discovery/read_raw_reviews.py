@@ -106,7 +106,7 @@ def _assert_if_extracted(page_str, page_number) -> None:
         logger.info(f"page {page_number} extracted from google")
     else:
         logger.fatal(f"page {page_number} not extracted from google: {page_str}")
-        raise ValueError(f"page {page_number} is empty")
+        raise EmptyPageError(f"page {page_number} is empty")
      
 def process_page(request: Dict[str, Any], page_number: int, next_page_token: str) -> Tuple[Dict, str]:
     """
@@ -256,3 +256,7 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
 
     update_places_is_reviewed(request)
     logger.info(f' [v] finished with {request["name"]}')
+    
+    
+class EmptyPageError(Exception):
+    pass
