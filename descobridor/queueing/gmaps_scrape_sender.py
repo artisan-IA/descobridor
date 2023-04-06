@@ -21,20 +21,21 @@ load_dotenv()
 
 
 class GmapsClient:
-    def __init__(self) -> None:
-        self.connection = get_auth_connection()
-        self.channel = self.connection.channel()
+    def __init__(self, debug=False) -> None:
+        if not debug:
+            self.connection = get_auth_connection()
+            self.channel = self.connection.channel()
 
-        result = self.channel.queue_declare(queue='', exclusive=True)
-        self.callback_queue = result.method.queue
+            result = self.channel.queue_declare(queue='', exclusive=True)
+            self.callback_queue = result.method.queue
 
-        self.channel.basic_consume(
-            queue=self.callback_queue,
-            on_message_callback=self.on_response,
-            auto_ack=True)
+            self.channel.basic_consume(
+                queue=self.callback_queue,
+                on_message_callback=self.on_response,
+                auto_ack=True)
 
-        self.response = None
-        self.corr_id = None
+            self.response = None
+            self.corr_id = None
         
     def on_response(self, ch, method, props, body):
         if self.corr_id == props.correlation_id:
@@ -95,8 +96,12 @@ class GmapsClient:
         doc.pop('_id')
         doc['language'] = language
         doc['country_domain'] = domain
-        doc['last_scraped'] = doc[self.loc_last_scraped(language)]
-        doc.pop(self.loc_last_scraped(language))
+        if self.loc_last_scraped(language) in doc:
+            doc['last_scraped'] = doc[self.loc_last_scraped(language)]
+            doc.pop(self.loc_last_scraped(language))
+        else:
+            doc["last_scraped"] = "2017-01-01"
+        
         assert set(doc.keys()) == GMAPS_SCRAPER_INTERFACE
         return doc
 
@@ -115,15 +120,17 @@ class GmapsClient:
         
         now = datetime.now()
         older_than = str((now - timedelta(days=GMAPS_SCRAPE_FREQ_D)).date())
-        return {"data_id": {"$ne": None},
+        conditions = {"data_id": {"$ne": None},
                 "unscrapable": {"$ne": True},
                 "$or": [
                     {last_scraped: {"$exists": False}},
                     {last_scraped: None},
                     {last_scraped: {"$lt": older_than}}
                 ],
-                "place_id": {"$nin": places_working_on}
                 }
+        if places_working_on:
+            conditions["place_id"] = {"$nin": places_working_on}
+        return conditions
 
 
 if __name__ == "__main__":

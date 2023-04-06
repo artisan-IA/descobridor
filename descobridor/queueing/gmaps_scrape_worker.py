@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from truby.db_connection import RedisConnection, CosmosConnection, TimeoutError
 
 from descobridor.queueing.queues import get_auth_connection
-from descobridor.discovery.read_raw_reviews import extract_all_reviews
+from descobridor.discovery.read_raw_reviews import extract_all_reviews, EmptyPageError
 from descobridor.queueing.constants import (
     VPN_WAIT_TIME_S, VPN_NOTHING_WORKS_SLEEP_S, CURRENT_VPN_SUFFIX, EXPIRE_CURR_VPN_S,
     GMAPS_SCRAPER_INTERFACE, GMAPS_SCRAPE_KEY, PLACE_ID_EXPIRATION_S
@@ -47,7 +47,11 @@ class GmapsWorker:
         assert set(gmaps_entry.keys()) == GMAPS_SCRAPER_INTERFACE
         self.logger.info(" [x] Received %r" % gmaps_entry)
         self.mark_place_id_as_in_progress(gmaps_entry['place_id'])
-        extract_all_reviews(gmaps_entry)
+        try:
+            extract_all_reviews(gmaps_entry)
+        except EmptyPageError:
+            self.kill_current_connection()
+            self.connect_to_a_new_vpn()
         self.logger.info(" [x] Done")
         ch.basic_publish(exchange='',
                      routing_key=props.reply_to,

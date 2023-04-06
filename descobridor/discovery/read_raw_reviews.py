@@ -13,7 +13,8 @@ from descobridor.discovery.constants import (
     TOO_MANY_PAGES, 
     REVIEWS_TOO_OLD_MONTHS,
     GMAPS_NEXT_PAGE_TOKEN,
-    PAGE_STATUS_EXPIRATION
+    PAGE_STATUS_EXPIRATION,
+    RAW_PAGE_EXPIRATION_S
     )
 from descobridor.the_logger import logger
 
@@ -94,10 +95,18 @@ def make_page_record(
     
     
 def store_page(record: Dict[str, Any]) -> None:
+    record['ttl'] = RAW_PAGE_EXPIRATION_S
     with CosmosConnection("raw_reviews") as conn:
         conn.collection.insert_one(record)
     return record
-     
+
+
+def _assert_if_extracted(page_str, page_number) -> None:
+    if len(page_str) > 100:
+        logger.info(f"page {page_number} extracted from google")
+    else:
+        logger.fatal(f"page {page_number} not extracted from google: {page_str}")
+        raise EmptyPageError(f"page {page_number} is empty")
      
 def process_page(request: Dict[str, Any], page_number: int, next_page_token: str) -> Tuple[Dict, str]:
     """
@@ -108,7 +117,7 @@ def process_page(request: Dict[str, Any], page_number: int, next_page_token: str
                                  request['country_domain'], request['language'])
     raw_google_output = get_review_page_from_google(link)
     page_str = binary_page_to_str(raw_google_output)
-    logger.info(f"page {page_number} read")
+    _assert_if_extracted(page_str, page_number)
     try:
         next_page_token = get_next_page_token(page_str)
     except IndexError:
@@ -223,6 +232,7 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
     while page_number < TOO_MANY_PAGES:
         logger.info(f'reading {request["name"]} page {page_number}')
         page_record, next_page_token = process_page(request, page_number, next_page_token)
+        logger.info(f"{page_record['content'][:200]}")
         reviews = rp.get_page_reviews(page_record, request['language'])
         if not reviews.empty:
             logger.info(f"storing page and reviews for {page_number}")
@@ -246,3 +256,7 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
 
     update_places_is_reviewed(request)
     logger.info(f' [v] finished with {request["name"]}')
+    
+    
+class EmptyPageError(Exception):
+    pass
