@@ -77,10 +77,10 @@ class GmapsClient:
         loc = get_localization(os.environ["country"])
         logger.info("Getting next batch of messages for gmaps scrape queue...")
         with MongoConnection("places") as db:
-            last_scraped_field = self.loc_last_scraped(loc['language'])
+            last_scraped = self.loc_last_scraped(loc['language'])
             cursor = db.collection.find(
-                self.scrape_conditions(last_scraped_field),
-                {"place_id", "priority", "name", "data_id", last_scraped_field}
+                self.scrape_conditions(last_scraped),
+                {"place_id", "priority", "name", "data_id", last_scraped}
                 ).sort("priority", -1).limit(1)
             docs = list(cursor)
         return self.prepare_request(docs[0], loc['language'], loc['domain']) 
@@ -98,9 +98,10 @@ class GmapsClient:
         doc['country_domain'] = domain
         if self.loc_last_scraped(language) in doc:
             doc['last_scraped'] = doc[self.loc_last_scraped(language)]
+            doc.pop(self.loc_last_scraped(language))
         else:
             doc["last_scraped"] = "2017-01-01"
-        doc.pop(self.loc_last_scraped(language))
+        
         assert set(doc.keys()) == GMAPS_SCRAPER_INTERFACE
         return doc
 
