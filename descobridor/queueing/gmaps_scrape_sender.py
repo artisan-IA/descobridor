@@ -82,6 +82,8 @@ class GmapsClient:
                 {"place_id", "priority", "name", "data_id", last_scraped}
                 ).sort("priority", -1).limit(1)
             docs = list(cursor)
+            logger.debug(f"{self.scrape_conditions(last_scraped)}")
+            logger.debug(f"{docs=}")
         return self.prepare_request(docs[0], loc['language'], loc['domain']) 
 
     @staticmethod
