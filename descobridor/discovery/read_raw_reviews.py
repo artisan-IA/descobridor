@@ -106,6 +106,8 @@ def _assert_if_extracted(page_str, page_number) -> None:
         logger.info(f"page {page_number} extracted from google")
     else:
         logger.fatal(f"page {page_number} not extracted from google: {page_str}")
+        with open(f"pn{page_number}_{datetime.now()}.html", 'w') as f:
+            f.write(page_str)
         raise EmptyPageError(f"page {page_number} is empty")
      
 def process_page(request: Dict[str, Any], page_number: int, next_page_token: str) -> Tuple[Dict, str]:
