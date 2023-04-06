@@ -106,8 +106,6 @@ def _assert_if_extracted(page_str, page_number) -> None:
         logger.info(f"page {page_number} extracted from google")
     else:
         logger.fatal(f"page {page_number} not extracted from google: {page_str}")
-        with open(f"pn{page_number}_{datetime.now()}.html", 'w') as f:
-            f.write(page_str)
         raise EmptyPageError(f"page {page_number} is empty")
      
 def process_page(request: Dict[str, Any], page_number: int, next_page_token: str) -> Tuple[Dict, str]:
@@ -245,6 +243,8 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
             successful_page_to_redis(request, page_number)
         else:
             logger.warning(f"no reviews found for {request['name']}")
+            with open(f"pn{request['name']}_{page_number}.html", 'w') as f:
+                f.write(page_record['content'])
             break
 
         if is_stop_condition(reviews, next_page_token, last_scraped):
