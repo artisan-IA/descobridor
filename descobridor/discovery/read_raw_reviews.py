@@ -242,7 +242,7 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
             logger.info(f"stored reviews for {page_number}")
             successful_page_to_redis(request, page_number)
         else:
-            logger.warning(f"no reviews found for {request['name']}")
+            logger.critical(f"no reviews found for {request['name']}")
             with open(f"pn{request['name']}_{page_number}.html", 'w') as f:
                 f.write(page_record['content'])
             raise NoReviewsError(f"no reviews found for {request['name']}")
