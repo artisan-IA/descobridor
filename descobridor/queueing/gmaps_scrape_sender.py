@@ -96,7 +96,10 @@ class GmapsClient:
         doc.pop('_id')
         doc['language'] = language
         doc['country_domain'] = domain
-        doc['last_scraped'] = doc[self.loc_last_scraped(language)]
+        if self.loc_last_scraped(language) in doc:
+            doc['last_scraped'] = doc[self.loc_last_scraped(language)]
+        else:
+            doc["last_scraped"] = "2017-01-01"
         doc.pop(self.loc_last_scraped(language))
         assert set(doc.keys()) == GMAPS_SCRAPER_INTERFACE
         return doc
