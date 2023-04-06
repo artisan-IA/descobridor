@@ -14,7 +14,11 @@ from dotenv import load_dotenv
 from truby.db_connection import RedisConnection, CosmosConnection, TimeoutError
 
 from descobridor.queueing.queues import get_auth_connection
-from descobridor.discovery.read_raw_reviews import extract_all_reviews, EmptyPageError
+from descobridor.discovery.read_raw_reviews import (
+    extract_all_reviews, 
+    EmptyPageError,
+    NoReviewsError
+)
 from descobridor.queueing.constants import (
     VPN_WAIT_TIME_S, VPN_NOTHING_WORKS_SLEEP_S, CURRENT_VPN_SUFFIX, EXPIRE_CURR_VPN_S,
     GMAPS_SCRAPER_INTERFACE, GMAPS_SCRAPE_KEY, PLACE_ID_EXPIRATION_S
@@ -52,13 +56,21 @@ class GmapsWorker:
         except EmptyPageError:
             self.kill_current_connection()
             self.connect_to_a_new_vpn()
-        self.logger.info(" [x] Done")
-        ch.basic_publish(exchange='',
-                     routing_key=props.reply_to,
-                     properties=pika.BasicProperties(
-                         correlation_id=props.correlation_id),
-                     body=str("OK"))
-        ch.basic_ack(delivery_tag = method.delivery_tag)
+            self.logger.warning(" [x] Empty page error")
+            ch.basic_nack(delivery_tag = method.delivery_tag)
+        except NoReviewsError:
+            self.kill_current_connection()
+            self.connect_to_a_new_vpn()
+            self.logger.warning(" [x] No reviews error")
+            ch.basic_nack(delivery_tag = method.delivery_tag)
+        else:
+            self.logger.info(" [x] Done")
+            ch.basic_publish(exchange='',
+                        routing_key=props.reply_to,
+                        properties=pika.BasicProperties(
+                            correlation_id=props.correlation_id),
+                        body=str("OK"))
+            ch.basic_ack(delivery_tag = method.delivery_tag)
         
     def main(self) -> None:
         self.channel.basic_qos(prefetch_count=1)

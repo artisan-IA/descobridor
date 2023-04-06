@@ -245,7 +245,7 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
             logger.warning(f"no reviews found for {request['name']}")
             with open(f"pn{request['name']}_{page_number}.html", 'w') as f:
                 f.write(page_record['content'])
-            break
+            raise NoReviewsError(f"no reviews found for {request['name']}")
 
         if is_stop_condition(reviews, next_page_token, last_scraped):
             logger.info(f"stop condition met for {request['name']}")
@@ -261,4 +261,7 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
     
     
 class EmptyPageError(Exception):
+    pass
+
+class NoReviewsError(Exception):
     pass
