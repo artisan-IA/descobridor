@@ -230,6 +230,7 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
     last_scraped = get_last_scraped(request)
     # start the review extraction
     page_number, next_page_token = get_page_num_and_page_token(request)
+    counter = 0
     while page_number < TOO_MANY_PAGES:
         logger.info(f'reading {request["name"]} page {page_number}')
         page_record, next_page_token = process_page(request, page_number, next_page_token)
@@ -242,6 +243,8 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
             store_reviews(reviews)
             logger.info(f"stored reviews for {page_number}")
             successful_page_to_redis(request, page_number)
+            if counter > 10:
+                raise ChangeVPNError("change vpn")
         else:
             logger.critical(f"no reviews found for {request['name']}")
             if GOOGLE_ERROR in page_record['content']:
@@ -256,6 +259,7 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
             break
         
         page_number += 1
+        counter += 1
         wait = max(np.random.beta(2, 2) * 2.5 + 2.5, np.random.gamma(5, 2))
         logger.info(f'sleeping for {wait} s')
         time.sleep(wait)
@@ -271,4 +275,7 @@ class NoReviewsError(Exception):
     pass
 
 class GoogleKnowsError(Exception):
+    pass
+
+class ChangeVPNError(Exception):
     pass

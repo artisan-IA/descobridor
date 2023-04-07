@@ -18,7 +18,8 @@ from descobridor.discovery.read_raw_reviews import (
     extract_all_reviews, 
     EmptyPageError,
     NoReviewsError,
-    GoogleKnowsError
+    GoogleKnowsError,
+    ChangeVPNError
 )
 from descobridor.queueing.constants import (
     VPN_WAIT_TIME_S, VPN_NOTHING_WORKS_SLEEP_S, CURRENT_VPN_SUFFIX, EXPIRE_CURR_VPN_S,
@@ -72,6 +73,11 @@ class GmapsWorker:
             # 
             # self.connect_to_a_new_vpn()
             # ch.basic_nack(delivery_tag = method.delivery_tag)
+        except ChangeVPNError:
+            self.kill_current_connection()
+            self.connect_to_a_new_vpn()
+            self.logger.critical(" [x] Attempting to change VPN")
+            ch.basic_nack(delivery_tag = method.delivery_tag)
         else:
             self.logger.info(" [x] Done")
             ch.basic_publish(exchange='',
