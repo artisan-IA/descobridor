@@ -14,7 +14,8 @@ from descobridor.discovery.constants import (
     REVIEWS_TOO_OLD_MONTHS,
     GMAPS_NEXT_PAGE_TOKEN,
     PAGE_STATUS_EXPIRATION,
-    RAW_PAGE_EXPIRATION_S
+    RAW_PAGE_EXPIRATION_S,
+    GOOGLE_ERROR,
     )
 from descobridor.the_logger import logger
 
@@ -243,9 +244,12 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
             successful_page_to_redis(request, page_number)
         else:
             logger.critical(f"no reviews found for {request['name']}")
-            with open(f"pn{request['name']}_{page_number}.html", 'w') as f:
-                f.write(page_record['content'])
-            raise NoReviewsError(f"no reviews found for {request['name']}")
+            if GOOGLE_ERROR in page_record['content']:
+                raise GoogleKnowsError("google knows")
+            else:
+                with open(f"pn{request['name']}_{page_number}.html", 'w') as f:
+                    f.write(page_record['content'])
+                raise NoReviewsError(f"no reviews found for {request['name']}")
 
         if is_stop_condition(reviews, next_page_token, last_scraped):
             logger.info(f"stop condition met for {request['name']}")
@@ -264,4 +268,7 @@ class EmptyPageError(Exception):
     pass
 
 class NoReviewsError(Exception):
+    pass
+
+class GoogleKnowsError(Exception):
     pass

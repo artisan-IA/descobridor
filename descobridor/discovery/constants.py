@@ -6,6 +6,7 @@ TOO_MANY_PAGES = 200
 
 PAGE_STATUS_EXPIRATION = 60 * 60 * 24  # 1 day
 RAW_PAGE_EXPIRATION_S = 3600 * 24 * 14
+GOOGLE_ERROR = "Our systems have detected unusual traffic from your computer network."
 
 # scraping tags
 GMAPS_NEXT_PAGE_TOKEN = 'data-next-page-token="(\w+\=+)' # noqa S105
