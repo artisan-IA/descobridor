@@ -256,7 +256,7 @@ def extract_all_reviews(request: Dict[str, Any]) -> None:
             break
         
         page_number += 1
-        wait = max(np.random.beta(2, 2) * 2.5 + 2.5, np.random.gamma(4, 2))
+        wait = max(np.random.beta(2, 2) * 2.5 + 2.5, np.random.gamma(5, 2))
         logger.info(f'sleeping for {wait} s')
         time.sleep(wait)
 
