@@ -62,10 +62,10 @@ class GmapsWorker:
         except NoReviewsError:
             self.kill_current_connection()
             self.connect_to_a_new_vpn()
-            self.logger.warning(" [x] No reviews error")
+            self.logger.critical(" [x] No reviews error")
             ch.basic_nack(delivery_tag = method.delivery_tag)
         except GoogleKnowsError:
-            self.logger.warning(" [x] Google knows error")
+            self.logger.critical(" [x] Google knows error")
             time.sleep(10)
             self.kill_current_connection()
             self.connect_to_a_new_vpn()
