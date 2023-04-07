@@ -13,7 +13,7 @@ GMAPS_SCRAPE_BATCH_SIZE = GMAPS_SCRAPE_QUEUE_MAX_LENGTH
 GMAPS_SCRAPE_KEY = 'gmaps_scrape'
 GMAPS_SCRAPE_FREQ_D = 28
 
-VPN_COUNTRIES = ("es", "pt", "fr")
+VPN_COUNTRIES = ("es", "pt", "fr", "it")
 VPN_WAIT_TIME_S = 3600 * 24 # how long to wait until we can use VPN again
 EXPIRE_CURR_VPN_S = 60 * 30 # how long current VPN is valid
 VPN_NOTHING_WORKS_SLEEP_S = 3600 * 24 # if no VPN is available, suspend all operations for this time

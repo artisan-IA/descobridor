@@ -17,7 +17,8 @@ from descobridor.queueing.queues import get_auth_connection
 from descobridor.discovery.read_raw_reviews import (
     extract_all_reviews, 
     EmptyPageError,
-    NoReviewsError
+    NoReviewsError,
+    GoogleKnowsError
 )
 from descobridor.queueing.constants import (
     VPN_WAIT_TIME_S, VPN_NOTHING_WORKS_SLEEP_S, CURRENT_VPN_SUFFIX, EXPIRE_CURR_VPN_S,
@@ -62,6 +63,12 @@ class GmapsWorker:
             self.kill_current_connection()
             self.connect_to_a_new_vpn()
             self.logger.warning(" [x] No reviews error")
+            ch.basic_nack(delivery_tag = method.delivery_tag)
+        except GoogleKnowsError:
+            self.logger.warning(" [x] Google knows error")
+            time.sleep(10)
+            self.kill_current_connection()
+            self.connect_to_a_new_vpn()
             ch.basic_nack(delivery_tag = method.delivery_tag)
         else:
             self.logger.info(" [x] Done")
