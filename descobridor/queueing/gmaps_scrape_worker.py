@@ -66,10 +66,11 @@ class GmapsWorker:
             ch.basic_nack(delivery_tag = method.delivery_tag)
         except GoogleKnowsError:
             self.logger.critical(" [x] Google knows error")
-            time.sleep(10)
-            self.kill_current_connection()
-            self.connect_to_a_new_vpn()
-            ch.basic_ack(delivery_tag = method.delivery_tag)
+            raise GoogleKnowsError from None
+            # time.sleep(10)
+            # self.kill_current_connection()
+            # self.connect_to_a_new_vpn()
+            # ch.basic_nack(delivery_tag = method.delivery_tag)
         else:
             self.logger.info(" [x] Done")
             ch.basic_publish(exchange='',
